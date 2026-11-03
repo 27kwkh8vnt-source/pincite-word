@@ -10,7 +10,7 @@
   :root {
     --paper: #F4F6FA; --surface: #FFFFFF; --ink: #1A1F2B; --muted: #586174; --rule: #D3D9E3;
     --binding: #1E3F8A; --binding-ink: #FFFFFF; --binding-soft: #E3EAF8; --pin-bg: #FFE380; --pin-ink: #4A3A00;
-    --flag: #A8261D; --flag-soft: #FBEAE8;
+    --flag: #A8261D; --flag-soft: #FBEAE8; --warn: #8A5A00; --warn-soft: #FFF3D6; --ok: #1F6B45; --ok-soft: #E3F4EA;
     --serif: "Source Serif 4", "Iowan Old Style", Georgia, serif;
     --sans: "Public Sans", -apple-system, "Segoe UI", Arial, sans-serif;
     color-scheme: light;
@@ -19,18 +19,24 @@
     :root {
       --paper: #12161F; --surface: #1A202C; --ink: #E5E9F1; --muted: #9AA3B6; --rule: #2C3547;
       --binding: #8EADF2; --binding-ink: #0E131D; --binding-soft: #1F2C48; --pin-bg: #5C4B10; --pin-ink: #FFE89A;
-      --flag: #F08A80; --flag-soft: #3A1E1C; color-scheme: dark;
+      --flag: #F08A80; --flag-soft: #3A1E1C; --warn: #F2C46B; --warn-soft: #3A2F14; --ok: #7BD3A3; --ok-soft: #173326;
+      color-scheme: dark;
     }
   }
   * { box-sizing: border-box; }
   body { margin: 0; padding: 16px 14px 28px; background: var(--paper); color: var(--ink); font: 13.5px/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
-  button, input { font: inherit; color: inherit; }
+  button, input, select, textarea { font: inherit; color: inherit; }
   :focus-visible { outline: 2px solid var(--binding); outline-offset: 2px; }
+  [hidden] { display: none !important; }
 
-  .mast { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; }
+  .mast { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; }
   .spine { width: 9px; height: 38px; border-radius: 2px; background: var(--binding); box-shadow: inset -2px 0 0 rgba(0,0,0,.18); flex: none; }
   h1 { font: 600 24px/1 var(--serif); margin: 0; }
   .mast p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+
+  .tabs { display: grid; grid-template-columns: repeat(3, 1fr); border-bottom: 1px solid var(--rule); margin: 0 -14px 16px; padding: 0 14px; }
+  .tabs button { border: 0; background: none; padding: 8px 0 9px; font-weight: 600; font-size: 13px; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tabs button[aria-selected="true"] { color: var(--binding); border-bottom-color: var(--binding); }
 
   .field { margin-bottom: 12px; }
   .field-label { font-size: 12px; font-weight: 600; margin: 0 0 5px; }
@@ -43,12 +49,17 @@
   .switch.quiet .thumb { background: var(--binding-soft); }
   .switch.quiet button[aria-checked="true"] { color: var(--binding); }
   .note { color: var(--muted); font-size: 12px; margin: 5px 0 0; }
+  .check { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; margin: 2px 0 12px; cursor: pointer; }
+  .check input { margin: 2px 0 0; accent-color: var(--binding); }
+  .check small { display: block; color: var(--muted); font-size: 11.5px; }
 
   .primary { width: 100%; background: var(--binding); color: var(--binding-ink); border: 0; border-radius: 8px; padding: 10px; font-weight: 600; cursor: pointer; margin-top: 4px; }
-  .primary:disabled { opacity: .5; cursor: default; }
-  .secondary { background: var(--surface); border: 1px solid var(--rule); border-radius: 7px; padding: 6px 10px; cursor: pointer; font-size: 12.5px; }
+  .primary:disabled, .secondary:disabled { opacity: .5; cursor: default; }
+  .secondary { background: var(--surface); border: 1px solid var(--rule); border-radius: 7px; padding: 7px 10px; cursor: pointer; font-size: 12.5px; }
   .run-row { display: flex; gap: 8px; align-items: center; }
   .run-row .primary { flex: 1; }
+  .btn-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .btn-pair .primary, .btn-pair .secondary { margin: 0; width: 100%; }
   .status { margin: 10px 0 0; font-size: 12.5px; color: var(--muted); min-height: 1.5em; }
   .status.err { color: var(--flag); }
   .progress { height: 3px; background: var(--rule); border-radius: 2px; overflow: hidden; margin-top: 8px; }
@@ -56,7 +67,8 @@
 
   .key { background: var(--surface); border: 1px solid var(--rule); border-radius: 9px; padding: 12px; margin-bottom: 16px; }
   .key p { margin: 0 0 8px; font-size: 12.5px; }
-  .key input { width: 100%; border: 1px solid var(--rule); background: var(--paper); border-radius: 6px; padding: 7px 8px; margin-bottom: 8px; }
+  .key input, .inline input, .settings input, .settings select { width: 100%; border: 1px solid var(--rule); background: var(--paper); border-radius: 6px; padding: 6px 8px; }
+  .key input { margin-bottom: 8px; }
 
   h2 { font-size: 13px; font-weight: 600; margin: 20px 0 8px; display: flex; justify-content: space-between; align-items: baseline; }
   h2 span { color: var(--muted); font-weight: 400; }
@@ -84,100 +96,329 @@
   .linkbtn { border: 0; background: none; color: var(--binding); cursor: pointer; font-size: 12px; padding: 0; }
   .foot { color: var(--muted); font-size: 11.5px; margin-top: 22px; }
   .foot .linkbtn { font-size: 11.5px; }
+
+  /* Format tab */
+  .rules { background: var(--surface); border: 1px solid var(--rule); border-radius: 9px; padding: 10px 12px; font-size: 12.5px; margin-bottom: 12px; }
+  .rules dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0; }
+  .rules dt { color: var(--muted); }
+  .rules dd { margin: 0; }
+  details.settings { margin: 0 0 12px; font-size: 12.5px; }
+  details.settings summary { cursor: pointer; color: var(--binding); font-weight: 600; font-size: 12px; }
+  .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; margin-top: 10px; }
+  .settings-grid label { font-size: 11.5px; color: var(--muted); display: grid; gap: 3px; }
+  .settings-grid .full { grid-column: 1 / -1; }
+  .inline { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; margin-bottom: 8px; }
+  .inline label { font-size: 11.5px; color: var(--muted); display: grid; gap: 3px; }
+  .anon { border-top: 1px solid var(--rule); margin-top: 16px; padding-top: 12px; }
+  .anon h3 { font-size: 12.5px; margin: 0 0 8px; }
+
+  .report-item { display: grid; grid-template-columns: 20px 1fr; gap: 8px; padding: 9px 0; border-top: 1px solid var(--rule); font-size: 12.5px; }
+  .dot { width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 700; margin-top: 1px; }
+  .dot.ok { background: var(--ok-soft); color: var(--ok); }
+  .dot.warn { background: var(--warn-soft); color: var(--warn); }
+  .dot.bad { background: var(--flag-soft); color: var(--flag); }
+  .dot.info { background: var(--binding-soft); color: var(--binding); }
+  .report-item b { font-weight: 600; }
+  .report-item p { margin: 2px 0 0; color: var(--muted); }
+  .report-item .actions { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { border: 1px solid var(--rule); background: var(--surface); border-radius: 999px; padding: 2px 9px; font-size: 11.5px; cursor: pointer; color: var(--binding); }
+  .chip:hover { border-color: var(--binding); }
+
+  /* Review tab */
+  .score { display: flex; align-items: baseline; gap: 8px; margin: 18px 0 4px; }
+  .score b { font: 600 34px/1 var(--serif); }
+  .score span { color: var(--muted); }
+  .cat { border-top: 1px solid var(--rule); padding: 12px 0; }
+  .cat-head { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; font-size: 13px; }
+  .cat-head span { color: var(--muted); font-weight: 500; white-space: nowrap; }
+  .bar { height: 4px; background: var(--rule); border-radius: 2px; margin: 6px 0 8px; overflow: hidden; }
+  .bar div { height: 100%; background: var(--binding); }
+  .cat p { margin: 0 0 6px; font-size: 12.5px; }
+  .issue { border-left: 2px solid var(--rule); padding: 4px 0 4px 9px; margin: 6px 0; font-size: 12.5px; }
+  .issue q { display: block; font-family: var(--serif); color: var(--muted); font-size: 12.5px; quotes: "\201C" "\201D"; }
+  .issue .sug { color: var(--muted); }
+  .issue.clickable { cursor: pointer; border-radius: 0 6px 6px 0; }
+  .issue.clickable:hover { background: var(--surface); border-left-color: var(--binding); }
+  .listblock { font-size: 12.5px; margin: 0; padding-left: 18px; }
+  .listblock li { margin-bottom: 4px; }
+  .callout { background: var(--surface); border: 1px solid var(--rule); border-radius: 9px; padding: 10px 12px; font-size: 12.5px; margin-top: 8px; }
   @media (prefers-reduced-motion: reduce) { .thumb, .switch button, .progress div { transition: none; } }
 </style>
 </head>
 <body>
   <div class="mast">
     <div class="spine" aria-hidden="true"></div>
-    <div><h1>Pincite</h1><p>Bluebook citations, checked in place.</p></div>
+    <div><h1>Pincite</h1><p>Citations, formatting, and a second read.</p></div>
   </div>
 
   <div class="key" id="keyBox" hidden>
-    <p>Add your Anthropic API key to start. It&#x2019;s stored only in Word on this Mac.</p>
+    <p>Add your Anthropic API key to use Cite check and Review. It&#x2019;s stored only in Word on this Mac. (Format works without it.)</p>
     <input type="password" id="keyInput" placeholder="sk-ant-&#x2026;" autocomplete="off">
     <button class="secondary" id="saveKey">Save key</button>
   </div>
 
-  <div class="field">
-    <p class="field-label" id="styleLabel">Style</p>
-    <div class="switch" role="radiogroup" aria-labelledby="styleLabel" id="modeSwitch" data-value="a">
-      <span class="thumb" aria-hidden="true"></span>
-      <button role="radio" aria-checked="true" data-v="memo">Memo</button>
-      <button role="radio" aria-checked="false" data-v="lawreview">Law review</button>
+  <div class="tabs" role="tablist" aria-label="Pincite tools">
+    <button role="tab" id="tab-cite" aria-controls="panel-cite" aria-selected="true">Cite check</button>
+    <button role="tab" id="tab-format" aria-controls="panel-format" aria-selected="false">Format</button>
+    <button role="tab" id="tab-review" aria-controls="panel-review" aria-selected="false">Review</button>
+  </div>
+
+  <!-- ================= CITE CHECK ================= -->
+  <section role="tabpanel" id="panel-cite" aria-labelledby="tab-cite">
+    <div class="field">
+      <p class="field-label" id="styleLabel">Style</p>
+      <div class="switch" role="radiogroup" aria-labelledby="styleLabel" id="modeSwitch" data-value="a">
+        <span class="thumb" aria-hidden="true"></span>
+        <button role="radio" aria-checked="true" data-v="memo">Memo</button>
+        <button role="radio" aria-checked="false" data-v="lawreview">Law review</button>
+      </div>
+      <p class="note" id="modeNote"></p>
     </div>
-    <p class="note" id="modeNote"></p>
-  </div>
 
-  <div class="field">
-    <p class="field-label" id="scopeLabel">Check</p>
-    <div class="switch quiet" role="radiogroup" aria-labelledby="scopeLabel" id="scopeSwitch" data-value="a">
-      <span class="thumb" aria-hidden="true"></span>
-      <button role="radio" aria-checked="true" data-v="document">Whole document</button>
-      <button role="radio" aria-checked="false" data-v="selection">Selection</button>
+    <label class="check"><input type="checkbox" id="fullOnly" checked>
+      <span>Full citations only<small>No <i>id.</i>, no short forms, no <i>supra</i>. Existing short forms are expanded to full citations, keeping your pinpoints.</small></span>
+    </label>
+
+    <div class="field">
+      <p class="field-label" id="scopeLabel">Check</p>
+      <div class="switch quiet" role="radiogroup" aria-labelledby="scopeLabel" id="scopeSwitch" data-value="a">
+        <span class="thumb" aria-hidden="true"></span>
+        <button role="radio" aria-checked="true" data-v="document">Whole document</button>
+        <button role="radio" aria-checked="false" data-v="selection">Selection</button>
+      </div>
+      <p class="note" id="scopeNote"></p>
     </div>
-    <p class="note" id="scopeNote"></p>
-  </div>
 
-  <div class="run-row">
-    <button class="primary" id="checkBtn">Check citations</button>
-    <button class="secondary" id="stopBtn" hidden>Stop</button>
-  </div>
-  <div class="progress" id="progress" hidden><div id="bar"></div></div>
-  <p class="status" id="status" role="status" aria-live="polite"></p>
-
-  <div id="results" hidden>
-    <h2>Needs your attention <span id="flagCount"></span></h2>
-    <div id="flags"></div>
-
-    <h2>Proposed changes <span id="editCount"></span></h2>
-    <p class="hint">Click a change to jump to it in your document.</p>
-    <div class="selectall"><button class="linkbtn" id="allBtn">Select all</button><button class="linkbtn" id="noneBtn">None</button></div>
-    <div id="edits"></div>
-    <div class="applybar">
-      <button class="primary" id="applyBtn">Apply changes</button>
+    <div class="run-row">
+      <button class="primary" id="checkBtn">Check citations</button>
+      <button class="secondary" id="stopBtn" hidden>Stop</button>
     </div>
-  </div>
+    <div class="progress" id="progress" hidden><div id="bar"></div></div>
+    <p class="status" id="status-cite" role="status" aria-live="polite"></p>
 
-  <p class="foot">Highlighted <mark class="pin">___</mark> blanks mark pinpoints or other details missing from your draft. Pincite never guesses them, and it doesn&#x2019;t look sources up, so verify every citation. Applied changes can be undone with Edit &gt; Undo. <button class="linkbtn" id="changeKey">Change API key</button></p>
+    <div id="results" hidden>
+      <h2>Needs your attention <span id="flagCount"></span></h2>
+      <div id="flags"></div>
+      <h2>Proposed changes <span id="editCount"></span></h2>
+      <p class="hint">Click a change to jump to it in your document.</p>
+      <div class="selectall"><button class="linkbtn" id="allBtn">Select all</button><button class="linkbtn" id="noneBtn">None</button></div>
+      <div id="edits"></div>
+      <div class="applybar"><button class="primary" id="applyBtn">Apply changes</button></div>
+    </div>
+
+    <p class="foot">Highlighted <mark class="pin">___</mark> blanks mark pinpoints or other details missing from your draft. Pincite never guesses them, and it doesn&#x2019;t look sources up, so verify every citation. Applied changes can be undone with Edit &gt; Undo.</p>
+  </section>
+
+  <!-- ================= FORMAT ================= -->
+  <section role="tabpanel" id="panel-format" aria-labelledby="tab-format" hidden>
+    <div class="rules">
+      <dl>
+        <dt>Body</dt><dd id="r-body"></dd>
+        <dt>Footnotes</dt><dd id="r-fn"></dd>
+        <dt>Block quotes</dt><dd id="r-bq"></dd>
+        <dt>Headings</dt><dd>Font and spacing fixed; alignment and bold kept</dd>
+        <dt>Spacing</dt><dd>One space after periods; extra spaces removed</dd>
+      </dl>
+    </div>
+
+    <details class="settings" id="settingsBox">
+      <summary>Adjust settings</summary>
+      <div class="settings-grid">
+        <label>Body font <input id="s-font" type="text"></label>
+        <label>Body size (pt) <input id="s-bodySize" type="number" min="8" max="16" step="0.5"></label>
+        <label>Body line spacing <select id="s-bodyLine"><option value="2">Double</option><option value="1.5">1.5</option><option value="1">Single</option></select></label>
+        <label>First-line indent (in) <input id="s-bodyIndent" type="number" min="0" max="1.5" step="0.05"></label>
+        <label class="full">Alignment <select id="s-align"><option value="Left">Left</option><option value="Justified">Justified</option></select></label>
+        <label>Footnote size (pt) <input id="s-fnSize" type="number" min="7" max="14" step="0.5"></label>
+        <label>Footnote indent (in) <input id="s-fnIndent" type="number" min="0" max="1.5" step="0.05"></label>
+        <label>Space between footnotes (pt) <input id="s-fnGap" type="number" min="0" max="24" step="1"></label>
+        <label>Block-quote indent, each side (in) <input id="s-bqIndent" type="number" min="0.25" max="1.5" step="0.05"></label>
+      </div>
+      <p class="note"><button class="linkbtn" id="resetSettings">Reset to journal defaults</button></p>
+    </details>
+
+    <div class="btn-pair">
+      <button class="primary" id="fixBtn">Fix formatting</button>
+      <button class="secondary" id="reqBtn">Check requirements</button>
+    </div>
+    <p class="status" id="status-format" role="status" aria-live="polite"></p>
+
+    <div id="report" hidden>
+      <h2>Requirements <span id="reportSummary"></span></h2>
+      <div id="reportItems"></div>
+    </div>
+
+    <div class="anon">
+      <h3>Anonymity</h3>
+      <div class="inline">
+        <label>Your ID (three digits + JP or JF) <input id="anonId" type="text" placeholder="250JP" autocomplete="off"></label>
+        <button class="secondary" id="addIdBtn">Add to header</button>
+      </div>
+      <div class="inline">
+        <label>Your name, to make sure it appears nowhere <input id="anonName" type="text" placeholder="First Last" autocomplete="off"></label>
+        <button class="secondary" id="saveNameBtn">Save</button>
+      </div>
+      <p class="note">Both stay on this Mac. Check requirements searches the text, footnotes, headers, comments, and the file&#x2019;s author info for your name.</p>
+    </div>
+  </section>
+
+  <!-- ================= REVIEW ================= -->
+  <section role="tabpanel" id="panel-review" aria-labelledby="tab-review" hidden>
+    <p class="note" style="margin-top:0">Reads your whole Note the way the Executive Board will, against the JLP grading rubric, and points out specific problems. A full Note usually costs somewhere around 10&#x2013;30&#xa2; per review.</p>
+    <div class="run-row" style="margin-top:12px">
+      <button class="primary" id="reviewBtn">Review my Note</button>
+    </div>
+    <p class="status" id="status-review" role="status" aria-live="polite"></p>
+    <div id="reviewOut" hidden></div>
+    <p class="foot">An estimate to guide revisions, not a prediction of the Board&#x2019;s decision. It can&#x2019;t check preemption, so keep searching for other articles on your topic yourself.</p>
+  </section>
+
+  <p class="foot"><button class="linkbtn" id="changeKey">Change API key</button></p>
 
 <script>
-/* ---------- Settings ---------- */
+/* ======================================================================
+   Settings
+   ====================================================================== */
 var MODEL = 'claude-sonnet-5-5';   // or 'claude-opus-5-5' for the most careful (and costlier) pass
 var MAX_TOKENS = 8000;
-var CHUNK_CHARS = 7000;            // about two pages per request
-var CONTEXT_CHARS = 20000;         // earlier text sent along for short-form decisions
+var CHUNK_CHARS = 7000;            // about two pages per cite-check request
+
+var JLP_DEFAULTS = { font: 'Times New Roman', bodySize: 12, bodyLine: 2, bodyIndent: 0.5, align: 'Left', fnSize: 10, fnIndent: 0.5, fnGap: 0, bqIndent: 0.5 };
+var MIN_FOOTNOTES = 175;
 
 var mode = 'memo', scope = 'document', current = null, stopping = false;
-var hasFootnoteApi = false, inWord = false;
+var hasFootnoteApi = false, hasApi14 = false, inWord = false;
 
 function $(id) { return document.getElementById(id); }
-function setStatus(t, err) { $('status').textContent = t || ''; $('status').classList.toggle('err', !!err); }
-function setProgress(done, total) { $('progress').hidden = !total; $('bar').style.width = total ? Math.round(done / total * 100) + '%' : '0'; }
-function busy(on) {
-  $('checkBtn').disabled = on; $('applyBtn').disabled = on;
+function store(k, v) { try { if (v === undefined) return localStorage.getItem('pincite:' + k); localStorage.setItem('pincite:' + k, v); } catch (e) { return null; } }
+function setStatus(panel, t, err) { var el = $('status-' + panel); el.textContent = t || ''; el.classList.toggle('err', !!err); }
+function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+/* ======================================================================
+   Tabs, key, startup
+   ====================================================================== */
+var tabs = ['cite', 'format', 'review'];
+function showTab(name) {
+  tabs.forEach(function (t) {
+    $('tab-' + t).setAttribute('aria-selected', String(t === name));
+    $('panel-' + t).hidden = t !== name;
+  });
+  store('tab', name);
+}
+tabs.forEach(function (t) { $('tab-' + t).addEventListener('click', function () { showTab(t); }); });
+document.querySelector('.tabs').addEventListener('keydown', function (e) {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  var i = tabs.indexOf(store('tab') || 'cite');
+  var next = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+  showTab(next); $('tab-' + next).focus();
+});
+showTab(store('tab') || 'cite');
+
+function getKey() { return store('key') || ''; }
+$('saveKey').addEventListener('click', function () {
+  var k = $('keyInput').value.trim();
+  if (!/^sk-ant-/.test(k)) { alertKey('That doesn\u2019t look like an Anthropic API key. It should start with sk-ant-.'); return; }
+  store('key', k); $('keyInput').value = ''; $('keyBox').hidden = true;
+});
+function alertKey(msg) { $('keyBox').hidden = false; $('keyBox').querySelector('p').textContent = msg; }
+$('changeKey').addEventListener('click', function () { $('keyBox').hidden = false; $('keyInput').focus(); });
+
+function setAllBusy(on) {
+  ['checkBtn', 'applyBtn', 'fixBtn', 'reqBtn', 'reviewBtn', 'addIdBtn'].forEach(function (id) { $(id).disabled = on; });
   document.querySelectorAll('.switch button').forEach(function (b) { b.disabled = on; });
 }
 
-/* ---------- API key (kept in this add-in's local storage on this Mac) ---------- */
-function getKey() { try { return localStorage.getItem('pincite:key') || ''; } catch (e) { return ''; } }
-function setKey(k) { try { localStorage.setItem('pincite:key', k); return true; } catch (e) { return false; } }
-$('saveKey').addEventListener('click', function () {
-  var k = $('keyInput').value.trim();
-  if (!/^sk-ant-/.test(k)) { setStatus('That doesn\u2019t look like an Anthropic API key. It should start with sk-ant-.', true); return; }
-  if (!setKey(k)) { setStatus('Couldn\u2019t save the key in Word\u2019s storage.', true); return; }
-  $('keyInput').value = ''; $('keyBox').hidden = true; setStatus('Key saved.');
+setAllBusy(true);
+setStatus('cite', 'Open Pincite from Word to use it.');
+Office.onReady(function (info) {
+  inWord = info.host === Office.HostType.Word;
+  if (!inWord) { setStatus('cite', 'Pincite runs inside Word. Open it from the Pincite button on the Home tab.', true); return; }
+  hasFootnoteApi = Office.context.requirements.isSetSupported('WordApi', '1.5');
+  hasApi14 = Office.context.requirements.isSetSupported('WordApi', '1.4');
+  setAllBusy(false); setStatus('cite', '');
+  if (!getKey()) $('keyBox').hidden = false;
 });
-$('changeKey').addEventListener('click', function () { $('keyBox').hidden = false; $('keyInput').focus(); });
 
-/* ---------- Switches ---------- */
+/* ======================================================================
+   Shared: Claude
+   ====================================================================== */
+async function callClaude(prompt, tool) {
+  if (!getKey()) { alertKey('Add your Anthropic API key first.'); throw new Error('Add your Anthropic API key first.'); }
+  var resp;
+  try {
+    resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': getKey(),
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: MODEL, max_tokens: MAX_TOKENS,
+        tools: [tool], tool_choice: { type: 'auto' },
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+  } catch (e) {
+    throw new Error('Couldn\u2019t reach the Anthropic API. Check your internet connection.');
+  }
+  var body = await resp.text();
+  if (resp.status === 401) { alertKey('Anthropic rejected your API key. Paste it again.'); throw new Error('Anthropic rejected your API key.'); }
+  if (resp.status === 402 || /credit balance/i.test(body)) throw new Error('Your Anthropic account is out of credits. Add credits in the Anthropic Console, then try again.');
+  if (resp.status === 429) throw new Error('The Anthropic API is rate limiting you. Wait a minute and try again.');
+  if (resp.status === 529 || resp.status === 503) throw new Error('The Anthropic API is busy. Try again in a moment.');
+  if (!resp.ok) {
+    var msg = ''; try { msg = JSON.parse(body).error.message; } catch (e) {}
+    throw new Error('Anthropic API error ' + resp.status + (msg ? ': ' + msg : '.'));
+  }
+  var data = JSON.parse(body);
+  if (data.stop_reason === 'max_tokens') throw new Error('The reply ran out of room. Try a smaller section.');
+  var use = (data.content || []).filter(function (b) { return b.type === 'tool_use'; })[0];
+  if (use && use.input) return use.input;
+  var text = (data.content || []).filter(function (b) { return b.type === 'text'; }).map(function (b) { return b.text; }).join('');
+  var t = text.replace(/```(?:json)?/g, '').trim(), a = t.indexOf('{'), z = t.lastIndexOf('}');
+  if (a >= 0 && z > a) { try { return JSON.parse(t.slice(a, z + 1)); } catch (e) {} }
+  throw new Error('Claude\u2019s reply couldn\u2019t be read. Try again.');
+}
+
+/* Shared: select a passage in the document by its text. */
+async function selectPassage(quote) {
+  var clean = String(quote || '').replace(/\s+/g, ' ').trim();
+  if (!clean) throw new Error('Nothing to look for.');
+  var words = clean.split(' ');
+  var tries = [clean.slice(0, 200), words.slice(0, 10).join(' '), words.slice(0, 6).join(' ')]
+    .filter(function (t, i, arr) { return t && arr.indexOf(t) === i; });
+  await Word.run(async function (ctx) {
+    var body = ctx.document.body;
+    for (var i = 0; i < tries.length; i++) {
+      var res = body.search(tries[i], { matchCase: false });
+      res.load('items');
+      await ctx.sync();
+      if (res.items.length) { res.items[0].select(); await ctx.sync(); return; }
+    }
+    if (hasFootnoteApi) {
+      var notes = body.footnotes; notes.load('items'); await ctx.sync();
+      for (var j = 0; j < tries.length; j++) {
+        var rs = notes.items.map(function (n) { var r = n.body.search(tries[j], { matchCase: false }); r.load('items'); return r; });
+        await ctx.sync();
+        for (var k = 0; k < rs.length; k++) if (rs[k].items.length) { rs[k].items[0].select(); await ctx.sync(); return; }
+      }
+    }
+    throw new Error('Couldn\u2019t find that passage in the document. It may have been edited since.');
+  });
+}
+
+/* ======================================================================
+   CITE CHECK
+   ====================================================================== */
 var modeNotes = {
   memo: 'Bluepages style: citations stay in the text, case names in italics.',
   lawreview: 'Whitepages style: citations in the text move into footnotes, with small caps where required.'
 };
 var scopeNotes = {
   document: 'Checks the main text, then the footnotes, about two pages at a time.',
-  selection: 'Checks every paragraph your selection touches. Earlier text is read for short forms (id., short cites) but not changed.'
+  selection: 'Checks every paragraph your selection touches. Earlier text is read for context but not changed.'
 };
 function wireSwitch(id, onChange) {
   var sw = $(id), buttons = sw.querySelectorAll('button');
@@ -198,23 +439,15 @@ function wireSwitch(id, onChange) {
   return set;
 }
 wireSwitch('modeSwitch', function (v) {
-  mode = v; $('modeNote').textContent = modeNotes[v];
-  if (current && current.mode !== v) { $('results').hidden = true; current = null; setStatus('Style changed. Check citations again.'); }
-})('memo');
+  mode = v; $('modeNote').textContent = modeNotes[v]; store('mode', v);
+  if (current && current.mode !== v) { $('results').hidden = true; current = null; setStatus('cite', 'Style changed. Check citations again.'); }
+})(store('mode') || 'lawreview');
 wireSwitch('scopeSwitch', function (v) { scope = v; $('scopeNote').textContent = scopeNotes[v]; })('document');
+$('fullOnly').checked = store('fullOnly') !== '0';
+$('fullOnly').addEventListener('change', function () { store('fullOnly', $('fullOnly').checked ? '1' : '0'); });
 
-/* ---------- Startup ---------- */
-setStatus('Open Pincite from Word to use it.');
-busy(true);
-Office.onReady(function (info) {
-  inWord = info.host === Office.HostType.Word;
-  if (!inWord) { setStatus('Pincite runs inside Word. Open it from the Pincite button on the Home tab.', true); return; }
-  hasFootnoteApi = Office.context.requirements.isSetSupported('WordApi', '1.5');
-  busy(false); setStatus('');
-  if (!getKey()) $('keyBox').hidden = false;
-});
+function setProgress(done, total) { $('progress').hidden = !total; $('bar').style.width = total ? Math.round(done / total * 100) + '%' : '0'; }
 
-/* ---------- Reading the document ---------- */
 async function snapshot(scope) {
   return Word.run(async function (ctx) {
     var body = ctx.document.body;
@@ -224,9 +457,8 @@ async function snapshot(scope) {
     var first = null, last = null;
     if (scope === 'selection') {
       var sel = ctx.document.getSelection();
-      var r1 = body.getRange('Start').expandTo(sel.getRange('Start'));
-      var r2 = body.getRange('Start').expandTo(sel.getRange('End'));
-      var c1 = r1.paragraphs, c2 = r2.paragraphs;
+      var c1 = body.getRange('Start').expandTo(sel.getRange('Start')).paragraphs;
+      var c2 = body.getRange('Start').expandTo(sel.getRange('End')).paragraphs;
       c1.load('items/text'); c2.load('items/text');
       await ctx.sync();
       first = Math.max(0, c1.items.length - 1);
@@ -265,16 +497,17 @@ function planChunks(snap) {
   return chunks;
 }
 
-function contextFor(snap, chunk) {
+function contextFor(snap, chunk, fullOnly) {
+  // Full-citations-only needs earlier full cites, which may be far back, so send more.
+  var limit = fullOnly ? 60000 : 20000;
   var out;
   if (chunk.kind === 'body') {
     out = snap.paras.slice(0, chunk.items[0]).join('\n');
   } else {
-    var firstNote = chunk.items[0];
     out = '(Main text not shown.) Earlier footnotes:\n' +
-      snap.notes.slice(0, firstNote).map(function (t, i) { return '[footnote ' + (i + 1) + '] ' + t.trim(); }).join('\n');
+      snap.notes.slice(0, chunk.items[0]).map(function (t, i) { return '[footnote ' + (i + 1) + '] ' + t.trim(); }).join('\n');
   }
-  return out.length > CONTEXT_CHARS ? '\u2026' + out.slice(-CONTEXT_CHARS) : out;
+  return out.length > limit ? '\u2026' + out.slice(-limit) : out;
 }
 
 function targetsFor(snap, chunk) {
@@ -283,66 +516,72 @@ function targetsFor(snap, chunk) {
   }).join('\n');
 }
 
-/* ---------- Claude ---------- */
-function buildPrompt(mode, context, targets, chunkKind) {
+function buildCitePrompt(mode, context, targets, chunkKind, fullOnly) {
   var canMove = mode === 'lawreview' && hasFootnoteApi && chunkKind === 'body';
   var memo = [
     'MODE: PRACTITIONER MEMO (Bluepages).',
     '- Citations stay in the text where the author placed them. Never set "move".',
-    '- Typeface: italicize (<i>) case names including "v." and procedural phrases, signals, "id.", and explanatory phrases such as "aff\'d" and "cert. denied". Never use <sc>. Do not italicize reporter, court, or statute abbreviations.',
+    '- Typeface: italicize (<i>) case names including "v." and procedural phrases, signals, and explanatory phrases such as "aff\'d" and "cert. denied"' + (fullOnly ? '' : ', and "id."') + '. Never use <sc>. Do not italicize reporter, court, or statute abbreviations.',
     '- The year may be omitted for a current official code (B12.1.1) unless the text relies on a particular year.',
-    '- Short-form case cites are allowed once the case has been cited in full earlier in the same general discussion (B10.2).'
-  ].join('\n');
+    fullOnly ? '' : '- Short-form case cites are allowed once the case has been cited in full earlier in the same general discussion (B10.2).'
+  ].filter(Boolean).join('\n');
   var lawReview = [
     'MODE: LAW REVIEW (Whitepages).',
     canMove
       ? '- Every citation in a main-text paragraph [P#] moves to a footnote: return an edit with "move": true and "footnote" set to the full formatted footnote text. Its "find" must start with the space before the citation and end with the citation\'s own closing punctuation, so deleting it leaves the supported sentence ending in its punctuation mark; the footnote marker goes right where the deleted text was. For a citation clause mid-sentence, choose "find" so the marker lands right after the punctuation ending that clause.'
       : '- Fix citations in place. Never set "move".',
-    '- Footnote typeface: case names in full citations in ordinary roman type; case names in short-form citations italicized; signals, "id.", and explanatory phrases italicized; large and small caps (<sc>) only where the Whitepages require them (books, periodicals, state code names shown in small caps in T1). Main-text typeface: case names italicized.',
-    '- A short-form case cite may be used only if the case was cited in full in the same footnote or in one of the previous five footnotes (R.10.9); otherwise repeat the full citation.'
-  ].join('\n');
+    '- Footnote typeface: case names in full citations in ordinary roman type' + (fullOnly ? '' : '; case names in short-form citations italicized') + '; signals and explanatory phrases italicized' + (fullOnly ? '' : ', as is "id."') + '; large and small caps (<sc>) only where the Whitepages require them (books, periodicals, state code names shown in small caps in T1). Main-text typeface: case names italicized.',
+    fullOnly ? '' : '- A short-form case cite may be used only if the case was cited in full in the same footnote or in one of the previous five footnotes (R.10.9); otherwise repeat the full citation.'
+  ].filter(Boolean).join('\n');
+
+  var shortForms = fullOnly ? [
+    'CITATION FORM: FULL CITATIONS ONLY (the author\'s journal forbids all short forms)',
+    '- Never use "Id.", "id.", "supra", "infra", "hereinafter", "ibid.", or short-form case, statute, or secondary-source citations. Every citation must be a complete full citation, even when the same authority was cited in the immediately preceding citation or footnote.',
+    '- Find every short form in the text being checked ("Id.", "Id. at 678", "Iqbal, 556 U.S. at 678", "Iqbal at 678", "Smith, supra note 4, at 12", a bare "\u00a7 1983" used as a citation) and replace it with the full citation, copying every element (case name, volume, reporter, first page, court, year; or author, title, volume, journal, first page, year) from the earlier full citation in the READ-ONLY CONTEXT or the text, and using the short form\'s pinpoint as the pinpoint. Example: after a full cite to Ashcroft v. Iqbal, 556 U.S. 662, 678 (2009), "Id. at 680." becomes the full citation with pinpoint 680.',
+    '- "Id." with no pinpoint refers to the same page as the preceding citation: carry that pinpoint over. "Id." refers to the immediately preceding authority; if that was a string cite of several authorities, flag the ambiguity instead of guessing.',
+    '- "supra note N" refers to the full citation in footnote N: use that footnote\'s details.',
+    '- If the earlier full citation cannot be found in the context or text, put placeholders such as <pin>case name</pin>, <pin>volume</pin>, <pin>first page</pin>, or <pin>year</pin> where those elements belong and flag it. Never invent them.',
+    '- Do not convert any full citation into a short form.'
+  ] : [
+    'SHORT FORMS (check these as carefully as full citations)',
+    '- Recognize every short form: "Id." / "id." (with or without "at"), short case cites ("Iqbal, 556 U.S. at 678", "Iqbal at 678", "Twombly, 550 U.S. 556"), statute short forms ("\u00a7 1983", "id. \u00a7 1985"), and misuse of "supra", "ibid.", or "op. cit.".',
+    '- Judge each one from the READ-ONLY CONTEXT plus the text being checked: which citation immediately precedes it, and whether this authority was already cited in full.',
+    '- "Id." is correct only when the immediately preceding citation is to the same single authority. If "Id." starts the text being checked, the preceding citation is the last one in the context. Fix a wrong "Id." with the proper short form, or the full citation if no short form is allowed.',
+    '- "Id." needs "at" plus a pinpoint when citing a different page of the same case. Use plain "<i>Id.</i>" only for the same page as the preceding cite.',
+    '- A short-form case cite is: one party name (normally the first party, but not a governmental or very common party name), italicized; volume; reporter; "at"; pinpoint. Fix informal versions ("Iqbal at 678" -> "<i>Iqbal</i>, 556 U.S. at 678") using the volume and reporter from the earlier full cite.',
+    '- Statute short forms: "\u00a7 1983" or "<i>id.</i> \u00a7 1985" where appropriate (B12.2; R.12.10). Never use "supra" for cases or statutes (R.4.2).',
+    '- Replace a repeated full citation with the correct short form when the rules allow one.',
+    '- If a short form refers to a case never cited in full in the context or text, flag that a full citation is needed first. Do not invent it.'
+  ];
 
   return [
-    'You are a meticulous Bluebook (21st edition) cite-checker. Fix ONLY case and statute citations (full and short forms) in the TEXT TO CHECK, plus case names in textual sentences that need italics. Do not change the author\'s prose, arguments, or wording.',
+    'You are a meticulous Bluebook (21st edition) cite-checker. Fix ONLY citations (full and short forms) in the TEXT TO CHECK, plus case names in textual sentences that need italics. Do not change the author\'s prose, arguments, or wording.',
     '',
     mode === 'lawreview' ? lawReview : memo,
     '',
     'RULES FOR BOTH MODES',
-    '1. Never invent facts. Use only volumes, reporters, first pages, pinpoints, years, courts, section numbers, and subsequent history that appear in the context or the text. You may fix a garbled format ("556 US 662" -> "556 U.S. 662"; "42 USC section 1983" -> "42 U.S.C. \u00a7 1983"), but never supply a missing number, year, court, or reporter from your own knowledge.',
-    '2. Pinpoints. Every citation to a specific proposition from a case needs a pinpoint (B10.1.2; R.3.2(a)), including short forms. Keep the author\'s pinpoints exactly. Where one is missing, insert <pin>___</pin> where it belongs (e.g., "550 U.S. 544, <pin>___</pin> (2007)" or "<i>Id.</i> at <pin>___</pin>.") and add a flag. Use <pin>year</pin>, <pin>court</pin>, or <pin>reporter</pin> for other missing required elements.',
+    '1. Never invent facts. Use only volumes, reporters, first pages, pinpoints, years, courts, section numbers, authors, titles, and subsequent history that appear in the context or the text. You may fix a garbled format ("556 US 662" -> "556 U.S. 662"; "42 USC section 1983" -> "42 U.S.C. \u00a7 1983"), but never supply a missing element from your own knowledge.',
+    '2. Pinpoints. Every citation to a specific proposition needs a pinpoint (B10.1.2; R.3.2(a)). Keep the author\'s pinpoints exactly. Where one is missing, insert <pin>___</pin> where it belongs and add a flag. Use <pin>year</pin>, <pin>court</pin>, or <pin>reporter</pin> for other missing required elements.',
     '3. Abbreviate case names in citations per R.10.2.2 and T6 (T10 for geographic words). In textual sentences, abbreviate only as B10.1.1 / R.10.2.1 allow. Use "v." with a period. Omit "(U.S.)" for U.S. Supreme Court cases.',
     '4. Statutes per R.12 / B12 (e.g., 42 U.S.C. \u00a7 1983). Federal Rules: "Fed. R. Civ. P. 12(b)(6)" in citations; spelled out in textual sentences. Use "\u00a7" followed by a space; "\u00a7\u00a7" for multiple sections.',
-    '5. Flag, without changing substance, anything you cannot fix from the context or text alone: inconsistent citation details, possible need for subsequent history or a parallel cite, missing years, quotations needing pinpoints.',
+    '5. Flag, without changing substance, anything you cannot fix from the context or text alone.',
     '',
-    'SHORT FORMS (check these as carefully as full citations)',
-    '- Recognize every short form: "Id." / "id." (with or without "at"), short case cites ("Iqbal, 556 U.S. at 678", "Iqbal at 678", "Twombly, 550 U.S. 556"), statute short forms ("\u00a7 1983", "id. \u00a7 1985"), and misuse of "supra", "ibid.", or "op. cit.".',
-    '- Judge each one from the READ-ONLY CONTEXT plus the text being checked: which citation immediately precedes it, and whether this authority was already cited in full.',
-    '- "Id." is correct only when the immediately preceding citation is to the same single authority: not after a string cite of several authorities, and not after an intervening citation to something else. If "Id." starts the text being checked, the preceding citation is the last one in the context. Fix a wrong "Id." with the proper short form, or the full citation if no short form is allowed.',
-    '- "Id." needs "at" plus a pinpoint when citing a different page of the same case ("<i>Id.</i> at 680."). Use plain "<i>Id.</i>" only for the same page as the preceding cite.',
-    '- A short-form case cite is: one party name (normally the first party, but not a governmental or very common party name), italicized in memos and in law review short forms; volume; reporter; "at"; pinpoint. Fix informal versions ("Iqbal at 678" -> "<i>Iqbal</i>, 556 U.S. at 678") using the volume and reporter from the earlier full cite.',
-    '- Statute short forms: "\u00a7 1983" or "<i>id.</i> \u00a7 1985" where appropriate (B12.2; R.12.10).',
-    '- Never use "supra" for cases or statutes (R.4.2). "Ibid." and "op. cit." are not Bluebook forms.',
-    '- Replace a repeated full citation with the correct short form when the rules allow one.',
-    '- If a short form refers to a case never cited in full in the context or text, flag that a full citation is needed first. Do not invent it.',
+    shortForms.join('\n'),
     '',
     'HOW TO WRITE EDITS',
     '- Each line of the TEXT TO CHECK is one paragraph [P#] or one footnote [F#]. "target" is that label without brackets, e.g. "P12" or "F3".',
     '- "find": text copied EXACTLY, character for character, from that one paragraph or footnote (never the label). At most 200 characters; long enough to identify the citation, no longer. Leave out footnote reference numbers.',
-    '- "occurrence": which occurrence of "find" within that target you mean (1 = first). Count carefully when the same text repeats.',
+    '- "occurrence": which occurrence of "find" within that target you mean (1 = first).',
     '- "replace": the corrected text with markup (not used when "move" is true).',
     '- Edits must not overlap. Never edit the READ-ONLY CONTEXT.',
     '- Markup: only <i>...</i>, <sc>...</sc>, and <pin>...</pin>. No other tags, no Markdown, no HTML entities.',
     '- You MUST submit your answer by calling the submit_citation_edits tool exactly once. Do not answer in plain text. If nothing needs to change, call it with empty lists.',
     '',
     'READ-ONLY CONTEXT (earlier in the document)',
-    '"""',
-    context || '(none: the text to check starts the document)',
-    '"""',
+    '"""', context || '(none: the text to check starts the document)', '"""',
     '',
     'TEXT TO CHECK',
-    '"""',
-    targets,
-    '"""'
+    '"""', targets, '"""'
   ].join('\n');
 }
 
@@ -356,58 +595,18 @@ var EDIT_TOOL = {
         target: { type: 'string' }, find: { type: 'string' }, occurrence: { type: 'integer' },
         replace: { type: 'string' }, move: { type: 'boolean' }, footnote: { type: 'string' },
         why: { type: 'string', description: 'One short plain-English reason.' },
-        rule: { type: 'string', description: 'Bluebook rule, e.g. R.10.9 or B10.2.' }
+        rule: { type: 'string', description: 'Bluebook rule, e.g. R.10.2.2 or B10.1.' }
       }, required: ['target', 'find', 'why'] } },
       flags: { type: 'array', items: { type: 'object', properties: {
-        cite: { type: 'string', description: 'The citation as revised, plain text.' },
-        issue: { type: 'string', description: 'What the author must check or fill in.' }
+        cite: { type: 'string' }, issue: { type: 'string' }
       }, required: ['cite', 'issue'] } }
     },
     required: ['edits', 'flags']
   }
 };
 
-async function callClaude(prompt) {
-  var resp;
-  try {
-    resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': getKey(),
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: MODEL, max_tokens: MAX_TOKENS,
-        tools: [EDIT_TOOL], tool_choice: { type: 'auto' },
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-  } catch (e) {
-    throw new Error('Couldn\u2019t reach the Anthropic API. Check your internet connection.');
-  }
-  var body = await resp.text();
-  if (resp.status === 401) { $('keyBox').hidden = false; throw new Error('Anthropic rejected your API key. Paste it again.'); }
-  if (resp.status === 402 || /credit balance/i.test(body)) throw new Error('Your Anthropic account is out of credits. Add credits in the Anthropic Console, then try again.');
-  if (resp.status === 429) throw new Error('The Anthropic API is rate limiting you. Wait a minute and try again.');
-  if (resp.status === 529 || resp.status === 503) throw new Error('The Anthropic API is busy. Try again in a moment.');
-  if (!resp.ok) {
-    var msg = ''; try { msg = JSON.parse(body).error.message; } catch (e) {}
-    throw new Error('Anthropic API error ' + resp.status + (msg ? ': ' + msg : '.'));
-  }
-  var data = JSON.parse(body);
-  if (data.stop_reason === 'max_tokens') throw new Error('This part has more citations than fit in one reply. Select a smaller section and check it on its own.');
-  var use = (data.content || []).filter(function (b) { return b.type === 'tool_use'; })[0];
-  if (use && use.input) return use.input;
-  var text = (data.content || []).filter(function (b) { return b.type === 'text'; }).map(function (b) { return b.text; }).join('');
-  var t = text.replace(/```(?:json)?/g, '').trim(), a = t.indexOf('{'), z = t.lastIndexOf('}');
-  if (a >= 0 && z > a) { try { return JSON.parse(t.slice(a, z + 1)); } catch (e) {} }
-  throw new Error('Claude\u2019s reply couldn\u2019t be read. Try again.');
-}
-
-async function checkChunk(snap, chunk) {
-  var result = await callClaude(buildPrompt(mode, contextFor(snap, chunk), targetsFor(snap, chunk), chunk.kind));
+async function checkChunk(snap, chunk, fullOnly) {
+  var result = await callClaude(buildCitePrompt(mode, contextFor(snap, chunk, fullOnly), targetsFor(snap, chunk), chunk.kind, fullOnly), EDIT_TOOL);
   var allowed = {};
   chunk.items.forEach(function (i) { allowed[chunk.kind === 'body' ? 'P' + i : 'F' + (i + 1)] = true; });
   var canMove = mode === 'lawreview' && hasFootnoteApi && chunk.kind === 'body';
@@ -427,7 +626,6 @@ async function checkChunk(snap, chunk) {
   return { edits: edits, flags: flags };
 }
 
-/* ---------- Finding citations in Word ---------- */
 // Normalizes quotes and spacing, keeping a map back to original positions.
 function normMap(text) {
   var s = '', map = [], prevSpace = false;
@@ -443,7 +641,6 @@ function normMap(text) {
   return { s: s, map: map };
 }
 
-// Works out the exact text Word should search for, and which match to take.
 function searchPlan(text, find, occurrence) {
   if (!find) return null;
   var hay = normMap(text), needle = normMap(find).s;
@@ -479,7 +676,6 @@ async function findRanges(ctx, edits) {
   return jobs.map(function (j) { return (j && j.res.items[j.occ - 1]) || null; });
 }
 
-/* ---------- Writing formatted text ---------- */
 function segments(s) {
   var re = /<(\/?)(i|em|sc|pin)>/g, st = { i: 0, sc: 0, pin: 0 }, out = [], last = 0, m;
   function push(t) {
@@ -492,15 +688,13 @@ function segments(s) {
   push(s.slice(last));
   return out;
 }
-function escHtml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
-// Writes segments starting at `first` (a function that inserts the first piece).
 function writeSegments(segs, insertFirst, font) {
   var cur = null;
   segs.forEach(function (sg, k) {
     var r;
     if (sg.sc) {
-      var html = '<span style="font-variant:small-caps">' + escHtml(sg.text) + '</span>';
+      var html = '<span style="font-variant:small-caps">' + esc(sg.text) + '</span>';
       r = k === 0 ? insertFirst(html, true) : cur.insertHtml(html, 'After');
       if (font && font.name) r.font.name = font.name;
       if (font && font.size) r.font.size = font.size;
@@ -513,34 +707,33 @@ function writeSegments(segs, insertFirst, font) {
   });
 }
 
-/* ---------- Check ---------- */
-$('stopBtn').addEventListener('click', function () { stopping = true; $('stopBtn').disabled = true; setStatus('Stopping after this part\u2026'); });
+$('stopBtn').addEventListener('click', function () { stopping = true; $('stopBtn').disabled = true; setStatus('cite', 'Stopping after this part\u2026'); });
 
 $('checkBtn').addEventListener('click', async function () {
-  if (!getKey()) { $('keyBox').hidden = false; setStatus('Add your Anthropic API key first.', true); return; }
-  var runMode = mode;
-  stopping = false; busy(true); $('results').hidden = true; current = null;
+  if (!getKey()) { alertKey('Add your Anthropic API key first.'); return; }
+  var runMode = mode, fullOnly = $('fullOnly').checked;
+  stopping = false; setAllBusy(true); $('results').hidden = true; current = null;
   $('stopBtn').hidden = false; $('stopBtn').disabled = false;
-  setStatus(scope === 'selection' ? 'Reading your selection\u2026' : 'Reading the document\u2026');
+  setStatus('cite', scope === 'selection' ? 'Reading your selection\u2026' : 'Reading the document\u2026');
 
   var snap;
   try { snap = await snapshot(scope); }
   catch (e) {
-    finishUi();
-    setStatus(scope === 'selection' ? 'Select text in the main body of your document, then try again.' : 'Couldn\u2019t read the document: ' + e.message, true);
+    finishCite();
+    setStatus('cite', scope === 'selection' ? 'Select text in the main body of your document, then try again.' : 'Couldn\u2019t read the document: ' + e.message, true);
     return;
   }
   var chunks = planChunks(snap);
-  if (!chunks.length) { finishUi(); setStatus('There\u2019s no text to check.', true); return; }
+  if (!chunks.length) { finishCite(); setStatus('cite', 'There\u2019s no text to check.', true); return; }
 
   var acc = { mode: runMode, edits: [], flags: [] }, note = '', isErr = false, done = 0;
   for (; done < chunks.length; done++) {
     if (stopping) { note = 'Stopped after ' + done + ' of ' + chunks.length + ' parts. Results so far are below.'; break; }
     setProgress(done, chunks.length);
     var label = chunks[done].kind === 'notes' ? 'footnotes' : 'main text';
-    setStatus(chunks.length > 1 ? 'Checking part ' + (done + 1) + ' of ' + chunks.length + ' (' + label + ')\u2026' : 'Checking citations\u2026');
+    setStatus('cite', chunks.length > 1 ? 'Checking part ' + (done + 1) + ' of ' + chunks.length + ' (' + label + ')\u2026' : 'Checking citations\u2026');
     try {
-      var r = await checkChunk(snap, chunks[done]);
+      var r = await checkChunk(snap, chunks[done], fullOnly);
       Array.prototype.push.apply(acc.edits, r.edits);
       Array.prototype.push.apply(acc.flags, r.flags);
     } catch (e) {
@@ -559,15 +752,12 @@ $('checkBtn').addEventListener('click', async function () {
       });
     } catch (e) { /* leave found=false */ }
   }
-  finishUi();
+  finishCite();
   current = acc;
-  render(acc, note, isErr);
+  renderCite(acc, note, isErr);
 });
+function finishCite() { setAllBusy(false); $('stopBtn').hidden = true; setProgress(0, 0); }
 
-function finishUi() { busy(false); $('stopBtn').hidden = true; setProgress(0, 0); }
-
-/* ---------- Results ---------- */
-function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function markup(s) {
   return esc(s)
     .replace(/&lt;(i|em)&gt;/g, '<em>').replace(/&lt;\/(i|em)&gt;/g, '</em>')
@@ -576,7 +766,7 @@ function markup(s) {
 }
 function plain(s) { return String(s || '').replace(/<\/?(i|em|sc|pin)>/g, ''); }
 
-function render(r, note, isErr) {
+function renderCite(r, note, isErr) {
   var flags = r.flags, edits = r.edits;
   $('flagCount').textContent = flags.length ? '(' + flags.length + ')' : '';
   $('flags').innerHTML = flags.length
@@ -598,12 +788,11 @@ function render(r, note, isErr) {
     : '<p class="none">Every citation already looks right.</p>';
   $('applyBtn').hidden = !edits.some(function (e) { return e.found; });
   $('results').hidden = !(edits.length || flags.length || !isErr);
-  if (note) setStatus(note, isErr);
-  else setStatus(edits.length ? 'Review the changes, then apply the ones you want.' : 'Done.');
+  if (note) setStatus('cite', note, isErr);
+  else setStatus('cite', edits.length ? 'Review the changes, then apply the ones you want.' : 'Done.');
 }
 
-/* ---------- Jump to a citation ---------- */
-async function jump(el) {
+async function jumpEdit(el) {
   if (!current) return;
   var e = current.edits[Number(el.dataset.jump)];
   if (!e) return;
@@ -616,24 +805,23 @@ async function jump(el) {
       r.select();
       await ctx.sync();
     });
-  } catch (err) { setStatus(err.message, true); }
+  } catch (err) { setStatus('cite', err.message, true); }
 }
-$('edits').addEventListener('click', function (ev) { var el = ev.target.closest('[data-jump]'); if (el) jump(el); });
+$('edits').addEventListener('click', function (ev) { var el = ev.target.closest('[data-jump]'); if (el) jumpEdit(el); });
 $('edits').addEventListener('keydown', function (ev) {
   if (ev.key !== 'Enter' && ev.key !== ' ') return;
-  var el = ev.target.closest('[data-jump]'); if (el) { ev.preventDefault(); jump(el); }
+  var el = ev.target.closest('[data-jump]'); if (el) { ev.preventDefault(); jumpEdit(el); }
 });
 $('allBtn').addEventListener('click', function () { document.querySelectorAll('#edits input:not(:disabled)').forEach(function (c) { c.checked = true; }); });
 $('noneBtn').addEventListener('click', function () { document.querySelectorAll('#edits input').forEach(function (c) { c.checked = false; }); });
 
-/* ---------- Apply ---------- */
 $('applyBtn').addEventListener('click', async function () {
   if (!current) return;
   var ids = {};
   document.querySelectorAll('#edits input:checked').forEach(function (c) { ids[c.dataset.id] = true; });
   var chosen = current.edits.filter(function (e) { return ids[e.id]; });
-  if (!chosen.length) { setStatus('Select at least one change.', true); return; }
-  busy(true); setStatus('Applying ' + chosen.length + ' change' + (chosen.length === 1 ? '' : 's') + '\u2026');
+  if (!chosen.length) { setStatus('cite', 'Select at least one change.', true); return; }
+  setAllBusy(true); setStatus('cite', 'Applying ' + chosen.length + ' change' + (chosen.length === 1 ? '' : 's') + '\u2026');
   try {
     var result = await Word.run(async function (ctx) {
       var ranges = await findRanges(ctx, chosen);
@@ -667,11 +855,545 @@ $('applyBtn').addEventListener('click', async function () {
     $('results').hidden = true; current = null;
     var msg = 'Applied ' + result.applied + ' change' + (result.applied === 1 ? '' : 's') + '.';
     if (result.skipped) msg += ' Skipped ' + result.skipped + ' whose text had changed. Check citations again to catch them.';
-    setStatus(msg);
+    setStatus('cite', msg);
   } catch (e) {
-    setStatus('Couldn\u2019t apply the changes: ' + e.message, true);
+    setStatus('cite', 'Couldn\u2019t apply the changes: ' + e.message, true);
   }
-  busy(false);
+  setAllBusy(false);
+});
+
+/* ======================================================================
+   FORMAT
+   ====================================================================== */
+var S = loadSettings();
+function loadSettings() {
+  var s = {};
+  try { s = JSON.parse(store('format') || '{}') || {}; } catch (e) {}
+  var out = {};
+  Object.keys(JLP_DEFAULTS).forEach(function (k) { out[k] = s[k] != null && s[k] !== '' ? s[k] : JLP_DEFAULTS[k]; });
+  return out;
+}
+function showSettings() {
+  Object.keys(JLP_DEFAULTS).forEach(function (k) { $('s-' + k).value = S[k]; });
+  var lineName = { 2: 'double-spaced', 1.5: '1.5-spaced', 1: 'single-spaced' }[S.bodyLine] || S.bodyLine + '\u00d7';
+  $('r-body').textContent = S.font + ' ' + S.bodySize + ' pt, ' + lineName + ', ' + S.bodyIndent + '" first-line indent, ' + (S.align === 'Justified' ? 'justified' : 'left-aligned') + ', no extra space between paragraphs';
+  $('r-fn').textContent = S.fnSize + ' pt, single-spaced, ' + S.fnIndent + '" first-line indent' + (Number(S.fnGap) ? ', ' + S.fnGap + ' pt between notes' : '');
+  $('r-bq').textContent = 'Single-spaced, indented ' + S.bqIndent + '" on both sides';
+}
+Object.keys(JLP_DEFAULTS).forEach(function (k) {
+  $('s-' + k).addEventListener('change', function () {
+    var v = $('s-' + k).value;
+    S[k] = typeof JLP_DEFAULTS[k] === 'number' ? (parseFloat(v) || JLP_DEFAULTS[k]) : (v || JLP_DEFAULTS[k]);
+    store('format', JSON.stringify(S)); showSettings();
+  });
+});
+$('resetSettings').addEventListener('click', function () { S = JSON.parse(JSON.stringify(JLP_DEFAULTS)); store('format', JSON.stringify(S)); showSettings(); });
+showSettings();
+
+var PT = 72; // points per inch
+var END_PUNCT = /[.?!:;,"\u201d\u2019)\]]\s*$/;
+
+function classify(p) {
+  var text = (p.text || '').trim();
+  var style = String(p.styleBuiltIn || '') + ' ' + String(p.style || '');
+  if (!text) return 'empty';
+  if (p.tableNestingLevel > 0) return 'table';
+  if (/heading|title/i.test(style)) return 'heading';
+  if (p.isListItem) return 'list';
+  if (/quote|block/i.test(style) || p.leftIndent >= 25) return 'block';
+  if (text.length < 200 && !END_PUNCT.test(text) && (p.alignment === 'Centered' || p.font.bold === true)) return 'heading';
+  return 'body';
+}
+
+async function loadBodyParagraphs(ctx) {
+  var paras = ctx.document.body.paragraphs;
+  paras.load('items/text,items/style,items/styleBuiltIn,items/alignment,items/leftIndent,items/tableNestingLevel,items/isListItem,items/font/bold');
+  await ctx.sync();
+  return paras.items;
+}
+
+async function replaceAll(ctx, container, find, replacement) {
+  var total = 0;
+  for (var pass = 0; pass < 6; pass++) {
+    var res = container.search(find, { matchCase: true, matchWildcards: false });
+    res.load('items');
+    await ctx.sync();
+    if (!res.items.length) break;
+    res.items.forEach(function (r) { r.insertText(replacement, 'Replace'); });
+    await ctx.sync();
+    total += res.items.length;
+  }
+  return total;
+}
+
+$('fixBtn').addEventListener('click', async function () {
+  setAllBusy(true); setStatus('format', 'Fixing formatting\u2026');
+  try {
+    var stats = await Word.run(async function (ctx) {
+      var items = await loadBodyParagraphs(ctx);
+      var counts = { body: 0, heading: 0, block: 0, other: 0, tabs: 0, spaces: 0, notes: 0 };
+      var line = Number(S.bodyLine) * 12;
+
+      items.forEach(function (p) {
+        var kind = classify(p);
+        p.font.name = S.font;
+        p.font.size = Number(S.bodySize);
+        if (kind === 'heading') {
+          p.lineSpacing = line; p.spaceBefore = 0; p.spaceAfter = 0; p.firstLineIndent = 0;
+          counts.heading++;
+        } else if (kind === 'block') {
+          p.lineSpacing = 12; p.leftIndent = Number(S.bqIndent) * PT; p.rightIndent = Number(S.bqIndent) * PT;
+          p.firstLineIndent = 0; p.spaceBefore = 0; p.spaceAfter = 12; p.alignment = S.align;
+          counts.block++;
+        } else if (kind === 'body') {
+          p.lineSpacing = line; p.firstLineIndent = Number(S.bodyIndent) * PT; p.leftIndent = 0; p.rightIndent = 0;
+          p.spaceBefore = 0; p.spaceAfter = 0; p.alignment = S.align;
+          counts.body++;
+        } else {
+          if (kind !== 'table') { p.lineSpacing = line; p.spaceBefore = 0; p.spaceAfter = 0; }
+          counts.other++;
+        }
+      });
+      await ctx.sync();
+
+      // Remove tabs or spaces typed at the start of body paragraphs (the indent handles that now).
+      var lead = [];
+      items.forEach(function (p) {
+        if (classify(p) !== 'body') return;
+        var m = (p.text || '').match(/^[\t ]+/);
+        if (!m) return;
+        var res = p.search(m[0].replace(/\t/g, '^t'), { matchCase: true });
+        res.load('items');
+        lead.push(res);
+      });
+      await ctx.sync();
+      lead.forEach(function (res) { if (res.items[0]) { res.items[0].delete(); counts.tabs++; } });
+      await ctx.sync();
+
+      counts.spaces += await replaceAll(ctx, ctx.document.body, '  ', ' ');
+
+      if (hasFootnoteApi) {
+        var notes = ctx.document.body.footnotes; notes.load('items'); await ctx.sync();
+        var cols = notes.items.map(function (n) { var c = n.body.paragraphs; c.load('items'); return c; });
+        await ctx.sync();
+        cols.forEach(function (c) {
+          c.items.forEach(function (p, i) {
+            p.font.name = S.font; p.font.size = Number(S.fnSize);
+            p.lineSpacing = 12; p.spaceBefore = 0;
+            p.spaceAfter = i === c.items.length - 1 ? Number(S.fnGap) : 0;
+            p.firstLineIndent = Number(S.fnIndent) * PT; p.leftIndent = 0; p.rightIndent = 0;
+            p.alignment = S.align;
+          });
+        });
+        await ctx.sync();
+        counts.notes = notes.items.length;
+        for (var i = 0; i < notes.items.length; i++) counts.spaces += await replaceAll(ctx, notes.items[i].body, '  ', ' ');
+      }
+      return counts;
+    });
+    var parts = [stats.body + ' paragraphs', stats.heading + ' headings'];
+    if (stats.block) parts.push(stats.block + ' block quotes');
+    if (hasFootnoteApi) parts.push(stats.notes + ' footnotes');
+    var msg = 'Formatted ' + parts.join(', ') + '.';
+    if (stats.spaces) msg += ' Removed ' + stats.spaces + ' extra space' + (stats.spaces === 1 ? '' : 's') + '.';
+    if (stats.tabs) msg += ' Removed ' + stats.tabs + ' typed indent' + (stats.tabs === 1 ? '' : 's') + '.';
+    msg += ' Undo with Edit > Undo if anything looks off.';
+    setStatus('format', msg);
+  } catch (e) {
+    setStatus('format', 'Couldn\u2019t finish formatting: ' + e.message, true);
+  }
+  setAllBusy(false);
+});
+
+/* ---------- Requirements check ---------- */
+var reportJumps = [];
+function item(level, title, detail, actions) {
+  return { level: level, title: title, detail: detail || '', actions: actions || [] };
+}
+function countSentences(t) {
+  var s = (t || '').trim();
+  if (!s) return 0;
+  return s.split(/[.!?]["\u201d\u2019)\]]*\s+(?=["\u201c(\[]?[A-Z])/).filter(function (x) { return x.trim().length > 15; }).length;
+}
+
+$('reqBtn').addEventListener('click', async function () {
+  setAllBusy(true); setStatus('format', 'Checking requirements\u2026'); $('report').hidden = true;
+  reportJumps = [];
+  var out = [];
+  var name = (store('name') || '').trim();
+  var id = (store('anonId') || '').trim();
+  try {
+    await Word.run(async function (ctx) {
+      var doc = ctx.document, body = doc.body;
+      var items = await loadBodyParagraphs(ctx);
+
+      // Footnotes and endnotes
+      var notes = null, endnotes = null;
+      if (hasFootnoteApi) {
+        notes = body.footnotes; notes.load('items/body/text');
+        endnotes = body.endnotes; endnotes.load('items');
+      }
+      // Fonts and spacing actually in use
+      items.forEach(function (p) { p.load('lineSpacing,firstLineIndent'); p.font.load('name,size'); });
+      // Headers
+      var secs = doc.sections; secs.load('items');
+      // Properties
+      var props = doc.properties; props.load('author,lastAuthor,company,manager,title');
+      var tracking = null, comments = null;
+      if (hasApi14) { doc.load('changeTrackingMode'); comments = body.getComments(); comments.load('items/authorName'); }
+      await ctx.sync();
+
+      // ---- Footnote count
+      if (notes) {
+        var n = notes.items.length;
+        out.push(item(n >= MIN_FOOTNOTES ? 'ok' : 'bad', n + ' footnotes', n >= MIN_FOOTNOTES ? 'Meets the 175 minimum.' : (MIN_FOOTNOTES - n) + ' short of the 175 minimum.'));
+        var en = endnotes.items.length;
+        out.push(item(en ? 'bad' : 'ok', en ? en + ' endnotes found' : 'No endnotes', en ? 'The journal requires footnotes, not endnotes. Convert them with Insert > Footnote > Convert.' : 'Footnotes only, as required.'));
+      } else {
+        out.push(item('warn', 'Footnote count unavailable', 'This version of Word doesn\u2019t let add-ins read footnotes. Update Word to check the 175-footnote minimum.'));
+      }
+
+      // ---- Body font and spacing
+      var bodyParas = [], badFont = [], badSpacing = [];
+      items.forEach(function (p, i) {
+        var kind = classify(p);
+        if (kind !== 'body') return;
+        bodyParas.push(i);
+        if ((p.font.name && p.font.name !== S.font) || (p.font.size && Math.abs(p.font.size - S.bodySize) > 0.1) || !p.font.name || !p.font.size) badFont.push(i);
+        if (Math.abs(p.lineSpacing - S.bodyLine * 12) > 1 || Math.abs(p.firstLineIndent - S.bodyIndent * PT) > 2) badSpacing.push(i);
+      });
+      out.push(item(badFont.length ? 'warn' : 'ok', badFont.length ? badFont.length + ' paragraphs not in ' + S.font + ' ' + S.bodySize + ' pt' : 'Body font correct',
+        badFont.length ? 'Includes mixed fonts inside a paragraph. Fix formatting resolves this.' : S.font + ' ' + S.bodySize + ' pt throughout.',
+        badFont.slice(0, 5).map(function (i) { return { label: 'Paragraph ' + (i + 1), para: i }; })));
+      out.push(item(badSpacing.length ? 'warn' : 'ok', badSpacing.length ? badSpacing.length + ' paragraphs with other spacing or indents' : 'Body spacing and indents correct',
+        badSpacing.length ? 'Fix formatting sets double spacing and a ' + S.bodyIndent + '" first-line indent.' : '',
+        badSpacing.slice(0, 5).map(function (i) { return { label: 'Paragraph ' + (i + 1), para: i }; })));
+
+      // ---- Footnote font
+      if (notes) {
+        var fnParas = notes.items.map(function (nt) { var c = nt.body.paragraphs; c.load('items/lineSpacing'); return c; });
+        notes.items.forEach(function (nt) { nt.body.load('font/name,font/size'); });
+        await ctx.sync();
+        var badFn = [];
+        notes.items.forEach(function (nt, i) {
+          var f = nt.body.font;
+          var sp = fnParas[i].items.some(function (p) { return Math.abs(p.lineSpacing - 12) > 1; });
+          if (f.name !== S.font || !f.size || Math.abs(f.size - S.fnSize) > 0.1 || sp) badFn.push(i + 1);
+        });
+        out.push(item(badFn.length ? 'warn' : 'ok', badFn.length ? badFn.length + ' footnotes not ' + S.font + ' ' + S.fnSize + ' pt single-spaced' : 'Footnote formatting correct',
+          badFn.length ? 'First few: ' + badFn.slice(0, 8).join(', ') + '. Fix formatting resolves this.' : ''));
+      }
+
+      // ---- Double spaces
+      var dbl = body.search('  ', { matchCase: true }); dbl.load('items');
+      var dblNotes = notes ? notes.items.map(function (nt) { var r = nt.body.search('  ', { matchCase: true }); r.load('items'); return r; }) : [];
+      await ctx.sync();
+      var dCount = dbl.items.length + dblNotes.reduce(function (a, r) { return a + r.items.length; }, 0);
+      out.push(item(dCount ? 'warn' : 'ok', dCount ? dCount + ' double spaces' : 'One space after periods', dCount ? 'The journal requires one space after each period. Fix formatting removes them.' : ''));
+
+      // ---- Paragraphs without footnotes
+      if (hasFootnoteApi) {
+        var cols = bodyParas.map(function (i) { var c = items[i].getRange('Whole').footnotes; c.load('items'); return c; });
+        await ctx.sync();
+        var uncited = [], sentences = 0, cited = 0;
+        bodyParas.forEach(function (i, k) {
+          var s = countSentences(items[i].text), f = cols[k].items.length;
+          sentences += s; cited += Math.min(f, s);
+          if (s >= 2 && f === 0) uncited.push(i);
+        });
+        out.push(item(uncited.length ? 'warn' : 'ok',
+          uncited.length ? uncited.length + ' body paragraphs with no footnotes' : 'Every body paragraph has footnotes',
+          uncited.length ? 'The memo says most sentences should be cited. Fine for paragraphs that are purely your own argument; otherwise add support.' : '',
+          uncited.slice(0, 12).map(function (i) { return { label: '\u00b6 ' + (i + 1) + ': ' + (items[i].text || '').slice(0, 28) + '\u2026', para: i }; })));
+      }
+
+      // ---- ID header
+      var headerTexts = [];
+      var hdrs = [];
+      secs.items.forEach(function (s) { ['Primary', 'FirstPage'].forEach(function (t) { var h = s.getHeader(t); h.load('text'); hdrs.push({ type: t, h: h }); }); });
+      await ctx.sync();
+      hdrs.forEach(function (x) { headerTexts.push(x.h.text || ''); });
+      var primaryOk = hdrs.filter(function (x) { return x.type === 'Primary'; }).every(function (x) { return /\b\d{3}\s?J[PF]\b/.test(x.h.text || ''); });
+      var firstBad = hdrs.some(function (x) { return x.type === 'FirstPage' && (x.h.text || '').trim() && !/\b\d{3}\s?J[PF]\b/.test(x.h.text); });
+      out.push(item(primaryOk && !firstBad ? 'ok' : 'bad', primaryOk && !firstBad ? 'ID in the header' : 'ID missing from the header',
+        primaryOk && !firstBad ? 'Shown on every page. Make sure it\u2019s in the upper right.' : 'Every page needs your three-digit ID plus JP or JF in the upper-right header. Use \u201cAdd to header\u201d below.'));
+
+      // ---- Name
+      if (name) {
+        var nameParts = [name].concat(name.split(/\s+/).filter(function (w) { return w.length >= 3; }));
+        var hits = [];
+        var searches = nameParts.map(function (t) { var r = body.search(t, { matchCase: false, matchWholeWord: true }); r.load('items'); return r; });
+        var noteSearches = notes ? nameParts.map(function (t) { return notes.items.map(function (nt) { var r = nt.body.search(t, { matchCase: false, matchWholeWord: true }); r.load('items'); return r; }); }) : [];
+        await ctx.sync();
+        searches.forEach(function (r, i) { if (r.items.length) hits.push(nameParts[i] + ' in the text (' + r.items.length + '\u00d7)'); });
+        noteSearches.forEach(function (list, i) { var c = list.reduce(function (a, r) { return a + r.items.length; }, 0); if (c) hits.push(nameParts[i] + ' in footnotes (' + c + '\u00d7)'); });
+        nameParts.forEach(function (t) {
+          if (headerTexts.some(function (h) { return h.toLowerCase().indexOf(t.toLowerCase()) >= 0; })) hits.push(t + ' in a header');
+        });
+        var lower = nameParts.map(function (t) { return t.toLowerCase(); });
+        var propHit = ['author', 'lastAuthor', 'company', 'manager', 'title'].filter(function (k) {
+          var v = String(props[k] || '').toLowerCase(); return v && lower.some(function (t) { return v.indexOf(t) >= 0; });
+        });
+        if (propHit.length) hits.push('file info (' + propHit.join(', ') + ')');
+        if (comments) {
+          var cc = comments.items.filter(function (c) { var a = String(c.authorName || '').toLowerCase(); return lower.some(function (t) { return a.indexOf(t) >= 0; }); }).length;
+          if (cc) hits.push(cc + ' comment' + (cc === 1 ? '' : 's') + ' signed with your name');
+        }
+        out.push(item(hits.length ? 'bad' : 'ok', hits.length ? 'Your name appears in the file' : 'Your name doesn\u2019t appear',
+          hits.length ? hits.join('; ') + '.' : 'Checked the text, footnotes, headers, comments, and file info.',
+          propHit.length ? [{ label: 'Clear author info', act: 'clearProps' }] : []));
+      } else {
+        out.push(item('info', 'Name check skipped', 'Enter your name under Anonymity below to check that it appears nowhere in the file.'));
+      }
+      if (props.author || props.lastAuthor) {
+        out.push(item('warn', 'File stores an author name', 'Word saves your account name in the file. Turn on Word > Settings > Security > \u201cRemove personal information from this file on save\u201d before submitting.', props.author ? [{ label: 'Clear author info', act: 'clearProps' }] : []));
+      }
+      if (comments && comments.items.length) out.push(item('warn', comments.items.length + ' comments left in the file', 'Comments carry your name. Delete them before submitting (Review > Delete > Delete All Comments).'));
+      if (hasApi14 && doc.changeTrackingMode && doc.changeTrackingMode !== 'Off') out.push(item('warn', 'Track Changes is on', 'Tracked edits carry your name. Accept all changes and turn tracking off before submitting.'));
+
+      // ---- File name
+      var url = (Office.context.document && Office.context.document.url) || '';
+      var file = decodeURIComponent(url.split(/[\\/]/).pop() || '');
+      if (file) {
+        var fileOk = /^\d{3}\s?J[PF]\.docx?$/i.test(file);
+        var nameInFile = name && name.split(/\s+/).some(function (w) { return w.length >= 3 && file.toLowerCase().indexOf(w.toLowerCase()) >= 0; });
+        out.push(item(nameInFile ? 'bad' : (fileOk ? 'ok' : 'info'), 'File name: ' + file,
+          nameInFile ? 'Your name is in the file name. Rename it to your ID, e.g. \u201c' + (id || '250JP') + '.doc\u201d.' : (fileOk ? 'Matches the ID format.' : 'The memo asks you to name the submission file \u201c[JLP ID Number].doc\u201d.')));
+      }
+
+      // ---- Things Word won\u2019t let add-ins check
+      out.push(item('info', 'Check these yourself', '1" margins on every side (Layout > Margins > Normal). Length of 30\u201335 pages including footnotes (see the page count in Word\u2019s status bar). Every quoted phrase in quotation marks and footnoted.'));
+    });
+
+    renderReport(out);
+    var bad = out.filter(function (x) { return x.level === 'bad'; }).length, warn = out.filter(function (x) { return x.level === 'warn'; }).length;
+    setStatus('format', bad || warn ? (bad ? bad + ' requirement' + (bad === 1 ? '' : 's') + ' not met' : '') + (bad && warn ? ', ' : '') + (warn ? warn + ' to review' : '') + '.' : 'Everything Pincite can check looks right.');
+  } catch (e) {
+    setStatus('format', 'Couldn\u2019t finish the check: ' + e.message, true);
+  }
+  setAllBusy(false);
+});
+
+function renderReport(list) {
+  var icons = { ok: '\u2713', warn: '!', bad: '\u2715', info: 'i' };
+  $('reportItems').innerHTML = list.map(function (x) {
+    var acts = x.actions.map(function (a) {
+      var i = reportJumps.push(a) - 1;
+      return '<button class="chip" data-act="' + i + '">' + esc(a.label) + '</button>';
+    }).join('');
+    return '<div class="report-item"><span class="dot ' + x.level + '" aria-hidden="true">' + icons[x.level] + '</span><div><b>' + esc(x.title) + '</b>' +
+      (x.detail ? '<p>' + esc(x.detail) + '</p>' : '') + (acts ? '<div class="actions">' + acts + '</div>' : '') + '</div></div>';
+  }).join('');
+  $('report').hidden = false;
+}
+
+$('reportItems').addEventListener('click', async function (ev) {
+  var b = ev.target.closest('[data-act]'); if (!b) return;
+  var a = reportJumps[Number(b.dataset.act)]; if (!a) return;
+  try {
+    if (a.para != null) {
+      await Word.run(async function (ctx) {
+        var paras = ctx.document.body.paragraphs; paras.load('items'); await ctx.sync();
+        var p = paras.items[a.para]; if (!p) throw new Error('That paragraph moved. Run the check again.');
+        p.select(); await ctx.sync();
+      });
+    } else if (a.act === 'clearProps') {
+      await Word.run(async function (ctx) {
+        var pr = ctx.document.properties;
+        pr.author = ''; pr.company = ''; pr.manager = '';
+        await ctx.sync();
+      });
+      setStatus('format', 'Cleared the author, company, and manager fields. Turn on \u201cRemove personal information from this file on save\u201d so Word doesn\u2019t add them back.');
+    }
+  } catch (e) { setStatus('format', e.message, true); }
+});
+
+/* ---------- Anonymity ---------- */
+$('anonId').value = store('anonId') || '';
+$('anonName').value = store('name') || '';
+$('saveNameBtn').addEventListener('click', function () {
+  store('name', $('anonName').value.trim());
+  setStatus('format', 'Saved. Check requirements will search for it.');
+});
+$('addIdBtn').addEventListener('click', async function () {
+  var id = $('anonId').value.trim().toUpperCase().replace(/\s+/g, '');
+  if (!/^\d{3}J[PF]$/.test(id)) { setStatus('format', 'Use three digits followed by JP or JF, like 250JP.', true); return; }
+  store('anonId', id); $('anonId').value = id;
+  setAllBusy(true);
+  try {
+    await Word.run(async function (ctx) {
+      var secs = ctx.document.sections; secs.load('items'); await ctx.sync();
+      var hs = [];
+      secs.items.forEach(function (s) { ['Primary', 'FirstPage', 'EvenPages'].forEach(function (t) { var h = s.getHeader(t); h.load('text'); hs.push(h); }); });
+      await ctx.sync();
+      hs.forEach(function (h) {
+        var text = (h.text || '').trim();
+        if (/\b\d{3}\s?J[PF]\b/.test(text)) return;
+        var p = text ? h.insertParagraph(id, 'Start') : h.paragraphs.getFirst();
+        if (!text) p.insertText(id, 'Replace');
+        p.alignment = 'Right'; p.font.name = S.font; p.font.size = Number(S.bodySize);
+      });
+      await ctx.sync();
+    });
+    setStatus('format', 'Added ' + id + ' to the upper-right header of every page.');
+  } catch (e) { setStatus('format', 'Couldn\u2019t add the header: ' + e.message, true); }
+  setAllBusy(false);
+});
+
+/* ======================================================================
+   REVIEW
+   ====================================================================== */
+var RUBRIC = [
+  { name: 'Topic', max: 5, lines: ['Topic is compelling and timely (3)', 'Topic has a clear law or policy nexus (2)'] },
+  { name: 'Thesis and Introduction', max: 15, lines: ['Clearly introduces topic and articulates a thesis; proper amount of background information for a generalist audience (5)', 'Thesis is clear, strong, and novel (5)', 'Provides a clear and concise roadmap (5)'] },
+  { name: 'Writing Mechanics and Small-Scale Organization', max: 20, lines: ['Writing is clear: no awkward sentences, minimal/no run-on sentences, no grammar or spelling errors, proper punctuation (10)', 'Ideas flow well within paragraphs and sections, aided by topic sentences, conclusions, and transitions (10)'] },
+  { name: 'Large Scale Organization', max: 15, lines: ['Body of paper is organized logically, with effective use of headings (5)', 'Large-scale flow of ideas builds understanding and aids analysis (10)'] },
+  { name: 'Legal Analysis', max: 35, lines: ['Persuasiveness of argument (10)', 'Consistent support of thesis (10)', 'Counterarguments are presented and dealt with (5)', 'Solution is clear, coherent, and well-supported (10)'] },
+  { name: 'Use of Citations', max: 10, lines: ['Cites where necessary (2)', 'Adequate quantity of footnotes (2)', 'Variety of sources are used (3)', 'Citations are in proper Bluebook format (3)'] }
+];
+
+var REVIEW_TOOL = {
+  name: 'submit_review',
+  description: 'Submit the rubric-based review of the Note.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      categories: { type: 'array', items: { type: 'object', properties: {
+        name: { type: 'string' }, score: { type: 'number' }, max: { type: 'number' },
+        assessment: { type: 'string', description: 'Two to four sentences on how the Note does on this category.' },
+        issues: { type: 'array', items: { type: 'object', properties: {
+          quote: { type: 'string', description: 'Exact text copied from the Note (under 150 characters) locating the problem; empty if it is about the whole Note.' },
+          problem: { type: 'string' }, suggestion: { type: 'string' }
+        }, required: ['problem', 'suggestion'] } }
+      }, required: ['name', 'score', 'max', 'assessment', 'issues'] } },
+      thesis_quote: { type: 'string', description: 'The sentence that states the thesis, copied exactly, or empty if none is clear.' },
+      roadmap_found: { type: 'boolean' },
+      sources: { type: 'object', properties: {
+        unique_total: { type: 'integer' }, cases: { type: 'integer' }, statutes_and_regulations: { type: 'integer' },
+        law_review_articles_and_books: { type: 'integer' }, news_and_other: { type: 'integer' }, comment: { type: 'string' }
+      } },
+      did_well: { type: 'string' }, could_improve: { type: 'string' }, publication: { type: 'string' }
+    },
+    required: ['categories', 'did_well', 'could_improve', 'publication']
+  }
+};
+
+async function noteSnapshot() {
+  return Word.run(async function (ctx) {
+    var items = await loadBodyParagraphs(ctx);
+    var notes = null, cols = [];
+    if (hasFootnoteApi) {
+      notes = ctx.document.body.footnotes; notes.load('items/body/text');
+      cols = items.map(function (p) { var c = p.getRange('Whole').footnotes; c.load('items'); return c; });
+    }
+    await ctx.sync();
+    var lines = [], fnNum = 0;
+    items.forEach(function (p, i) {
+      var t = (p.text || '').trim(); if (!t) return;
+      var kind = classify(p);
+      var fc = cols[i] ? cols[i].items.length : null;
+      var marks = '';
+      if (fc) { var nums = []; for (var k = 0; k < fc; k++) nums.push(++fnNum); marks = ' [footnotes ' + nums[0] + (fc > 1 ? '\u2013' + nums[nums.length - 1] : '') + ']'; }
+      else if (fc === 0 && kind === 'body') marks = ' [no footnotes]';
+      lines.push(kind === 'heading' ? '\n### ' + t : (kind === 'block' ? '> ' + t : t) + marks);
+    });
+    var fnText = notes ? notes.items.map(function (n, i) { return '[' + (i + 1) + '] ' + (n.body.text || '').trim(); }).join('\n') : '(footnotes unavailable in this version of Word)';
+    return { text: lines.join('\n'), footnotes: fnText, fnCount: notes ? notes.items.length : null };
+  });
+}
+
+function buildReviewPrompt(snap) {
+  return [
+    'You are a member of the Executive Board of the Brooklyn Law School Journal of Law and Policy (JLP), grading a staff writer\'s Note anonymously for publication. A Note identifies a legal or policy problem and offers the author\'s own unique solution. Grade candidly and specifically: do not inflate scores, and do not soften real problems. Your job is to help the author revise before submission.',
+    '',
+    'RUBRIC (100 points)',
+    RUBRIC.map(function (c) { return c.name + ' (' + c.max + '):\n' + c.lines.map(function (l) { return '  - ' + l; }).join('\n'); }).join('\n'),
+    '',
+    'Evaluation considerations from the journal: thorough legal analysis; clear, focused legal writing; strong, sustained argument; assertions supported; clear, sensible organization; originality, novelty, and timeliness of topic; correctly Bluebooked citations; extensive legal research; grammar, syntax, and sentence structure.',
+    'Journal requirements: 30\u201335 pages including footnotes; at least 175 footnotes; most sentences should have citations; at least 35 unique sources (publishable Notes in recent years had at least 65); NO short citations of any kind (no "id.", "supra", or short forms); any borrowed language must be in quotation marks and footnoted.',
+    '',
+    'INSTRUCTIONS',
+    '- Score every rubric category (use the exact category names above, with "max" as listed). Scores may use halves.',
+    '- For each category, list the most important specific problems (up to 5), most important first. Each issue needs a "quote": text copied EXACTLY from the Note, under 150 characters, that locates the problem (leave it empty only for whole-Note issues). Give a concrete suggestion for each; do not rewrite the Note for the author.',
+    '- Writing Mechanics: point to actual awkward sentences, run-ons, grammar, spelling, and punctuation errors you find, quoting them.',
+    '- Legal Analysis: say whether counterarguments are raised and answered, and whether the proposed solution is concrete and supported.',
+    '- Use of Citations: count UNIQUE sources from the footnotes (each distinct authority once; repeated full citations are the same source) and break them down by type. Note any short citations (id., supra, short forms), since the journal forbids them. Paragraphs marked [no footnotes] are uncited.',
+    '- You cannot verify preemption or whether the topic is truly novel. Judge novelty only from how the Note frames its contribution, and say so if relevant.',
+    '- Then fill in the board\'s feedback questions: something the author did well, something the author could improve upon, and why (or why not) the Note should be recommended for publication.',
+    '- You MUST submit by calling the submit_review tool exactly once. Do not answer in plain text.',
+    '',
+    'THE NOTE (paragraph text; headings marked ###; block quotes marked >; footnote numbers in brackets after each paragraph)',
+    '"""', snap.text, '"""',
+    '',
+    'FOOTNOTES' + (snap.fnCount != null ? ' (' + snap.fnCount + ' total)' : ''),
+    '"""', snap.footnotes, '"""'
+  ].join('\n');
+}
+
+$('reviewBtn').addEventListener('click', async function () {
+  if (!getKey()) { alertKey('Add your Anthropic API key first.'); return; }
+  setAllBusy(true); $('reviewOut').hidden = true;
+  setStatus('review', 'Reading your Note\u2026');
+  try {
+    var snap = await noteSnapshot();
+    if (snap.text.replace(/\s/g, '').length < 500) throw new Error('There isn\u2019t enough text to review yet.');
+    setStatus('review', 'Reviewing against the rubric. A full Note takes a minute or two\u2026');
+    var r = await callClaude(buildReviewPrompt(snap), REVIEW_TOOL);
+    renderReview(r);
+    setStatus('review', 'Done. Click any quoted passage to jump to it.');
+  } catch (e) {
+    setStatus('review', e.message, true);
+  }
+  setAllBusy(false);
+});
+
+var reviewQuotes = [];
+function renderReview(r) {
+  reviewQuotes = [];
+  var cats = Array.isArray(r.categories) ? r.categories : [];
+  var total = cats.reduce(function (a, c) { return a + (Number(c.score) || 0); }, 0);
+  var html = '<div class="score"><b>' + (Math.round(total * 2) / 2) + '</b><span>/ 100 estimated</span></div>';
+
+  if (r.thesis_quote || r.roadmap_found != null) {
+    html += '<div class="callout">' +
+      (r.thesis_quote ? '<b>Thesis as read:</b> <span style="font-family:var(--serif)">' + esc(r.thesis_quote) + '</span><br>' : '<b>No clear thesis sentence found.</b><br>') +
+      '<b>Roadmap:</b> ' + (r.roadmap_found ? 'found' : 'not found') + '</div>';
+  }
+  if (r.sources && r.sources.unique_total != null) {
+    var s = r.sources, n = Number(s.unique_total) || 0;
+    var lvl = n >= 65 ? 'at the publishable range (65+)' : n >= 35 ? 'above the 35 minimum, below the 65 typical of publishable Notes' : 'below the 35-source minimum';
+    html += '<div class="callout"><b>About ' + n + ' unique sources</b>, ' + lvl + '. ' +
+      [['cases', s.cases], ['statutes/regulations', s.statutes_and_regulations], ['articles/books', s.law_review_articles_and_books], ['news/other', s.news_and_other]]
+        .filter(function (x) { return x[1] != null; }).map(function (x) { return x[1] + ' ' + x[0]; }).join(' \u00b7 ') +
+      (s.comment ? '<br><span style="color:var(--muted)">' + esc(s.comment) + '</span>' : '') + '</div>';
+  }
+
+  cats.forEach(function (c) {
+    var pct = c.max ? Math.max(0, Math.min(100, (Number(c.score) || 0) / c.max * 100)) : 0;
+    html += '<div class="cat"><div class="cat-head">' + esc(c.name) + '<span>' + esc(c.score) + ' / ' + esc(c.max) + '</span></div>' +
+      '<div class="bar"><div style="width:' + pct + '%"></div></div><p>' + esc(c.assessment) + '</p>' +
+      (c.issues || []).map(function (is) {
+        var i = is.quote ? reviewQuotes.push(is.quote) - 1 : -1;
+        return '<div class="issue' + (i >= 0 ? ' clickable" role="button" tabindex="0" data-q="' + i : '') + '">' +
+          (is.quote ? '<q>' + esc(is.quote) + '</q>' : '') + esc(is.problem) + (is.suggestion ? ' <span class="sug">' + esc(is.suggestion) + '</span>' : '') + '</div>';
+      }).join('') + '</div>';
+  });
+
+  html += '<h2>Board feedback</h2><ul class="listblock">' +
+    '<li><b>Did well:</b> ' + esc(r.did_well) + '</li>' +
+    '<li><b>Could improve:</b> ' + esc(r.could_improve) + '</li>' +
+    '<li><b>Publication:</b> ' + esc(r.publication) + '</li></ul>';
+  $('reviewOut').innerHTML = html;
+  $('reviewOut').hidden = false;
+}
+async function jumpQuote(el) {
+  var q = reviewQuotes[Number(el.dataset.q)]; if (!q) return;
+  try { await selectPassage(q); } catch (e) { setStatus('review', e.message, true); }
+}
+$('reviewOut').addEventListener('click', function (ev) { var el = ev.target.closest('[data-q]'); if (el) jumpQuote(el); });
+$('reviewOut').addEventListener('keydown', function (ev) {
+  if (ev.key !== 'Enter' && ev.key !== ' ') return;
+  var el = ev.target.closest('[data-q]'); if (el) { ev.preventDefault(); jumpQuote(el); }
 });
 </script>
 </body>
