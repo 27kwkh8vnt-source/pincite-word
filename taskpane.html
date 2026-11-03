@@ -342,46 +342,85 @@ Office.onReady(function (info) {
 /* ======================================================================
    Shared: Claude
    ====================================================================== */
-async function callClaude(prompt, tool, maxTokens) {
+async function callClaude(prompt, tool, maxTokens, onProgress) {
   if (!getKey()) { alertKey('Add your Anthropic API key first.'); throw new Error('Add your Anthropic API key first.'); }
-  var resp;
-  try {
-    resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': getKey(),
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: MODEL, max_tokens: maxTokens || MAX_TOKENS,
-        tools: [tool], tool_choice: { type: 'auto' },
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-  } catch (e) {
-    throw new Error('Couldn\u2019t reach the Anthropic API. Check your internet connection.');
+  var payload = JSON.stringify({
+    model: MODEL, max_tokens: maxTokens || MAX_TOKENS, stream: true,
+    tools: [tool], tool_choice: { type: 'auto' },
+    messages: [{ role: 'user', content: prompt }]
+  });
+  // Streaming keeps data flowing, so Word's web view doesn't drop long requests as idle.
+  var resp = null, lastErr = null;
+  for (var attempt = 0; attempt < 2 && !resp; attempt++) {
+    try {
+      resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': getKey(),
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: payload
+      });
+    } catch (e) {
+      lastErr = e;
+      await new Promise(function (r) { setTimeout(r, 1500); });
+    }
   }
-  var body = await resp.text();
-  if (resp.status === 401) { alertKey('Anthropic rejected your API key. Paste it again.'); throw new Error('Anthropic rejected your API key.'); }
-  if (resp.status === 402 || /credit balance/i.test(body)) throw new Error('Your Anthropic account is out of credits. Add credits in the Anthropic Console, then try again.');
-  if (resp.status === 429) throw new Error('The Anthropic API is rate limiting you. Wait a minute and try again.');
-  if (resp.status === 529 || resp.status === 503) throw new Error('The Anthropic API is busy. Try again in a moment.');
+  if (!resp) throw new Error('Couldn\u2019t connect to the Anthropic API from Word (' + ((lastErr && lastErr.message) || 'network error') + ').');
+
   if (!resp.ok) {
+    var body = await resp.text();
+    if (resp.status === 401) { alertKey('Anthropic rejected your API key. Paste it again.'); throw new Error('Anthropic rejected your API key.'); }
+    if (resp.status === 402 || /credit balance/i.test(body)) throw new Error('Your Anthropic account is out of credits. Add credits in the Anthropic Console, then try again.');
+    if (resp.status === 429) throw new Error('The Anthropic API is rate limiting you. Wait a minute and try again.');
+    if (resp.status === 529 || resp.status === 503) throw new Error('The Anthropic API is busy. Try again in a moment.');
     var msg = ''; try { msg = JSON.parse(body).error.message; } catch (e) {}
     throw new Error('Anthropic API error ' + resp.status + (msg ? ': ' + msg : '.'));
   }
-  var data = JSON.parse(body);
-  if (data.stop_reason === 'max_tokens') {
+
+  var blocks = {}, stop = null, streamed = 0, streamErr = null;
+  function handle(chunk) {
+    var data = chunk.split('\n').filter(function (l) { return l.indexOf('data:') === 0; }).map(function (l) { return l.slice(5).trim(); }).join('');
+    if (!data) return;
+    var d; try { d = JSON.parse(data); } catch (e) { return; }
+    if (d.type === 'content_block_start') {
+      blocks[d.index] = { type: d.content_block.type, text: '', json: '' };
+    } else if (d.type === 'content_block_delta' && blocks[d.index]) {
+      if (d.delta.type === 'text_delta') { blocks[d.index].text += d.delta.text; streamed += d.delta.text.length; }
+      else if (d.delta.type === 'input_json_delta') { blocks[d.index].json += d.delta.partial_json; streamed += d.delta.partial_json.length; }
+      if (onProgress) onProgress(streamed);
+    } else if (d.type === 'message_delta' && d.delta) {
+      stop = d.delta.stop_reason || stop;
+    } else if (d.type === 'error') {
+      streamErr = (d.error && d.error.message) || 'The Anthropic API reported an error.';
+    }
+  }
+  try {
+    var reader = resp.body.getReader(), dec = new TextDecoder(), buf = '';
+    while (true) {
+      var r = await reader.read();
+      if (r.done) break;
+      buf += dec.decode(r.value, { stream: true }).replace(/\r\n/g, '\n');
+      var i;
+      while ((i = buf.indexOf('\n\n')) >= 0) { handle(buf.slice(0, i)); buf = buf.slice(i + 2); }
+    }
+    if (buf.trim()) handle(buf);
+  } catch (e) {
+    throw new Error('The connection to Anthropic dropped partway through. Try again.');
+  }
+  if (streamErr) throw new Error(/overload/i.test(streamErr) ? 'The Anthropic API is busy. Try again in a moment.' : streamErr);
+  if (stop === 'max_tokens') {
     var err = new Error('Claude\u2019s reply was longer than the space allowed.');
     err.code = 'max_tokens';
     throw err;
   }
-  var use = (data.content || []).filter(function (b) { return b.type === 'tool_use'; })[0];
-  if (use && use.input) return use.input;
-  var text = (data.content || []).filter(function (b) { return b.type === 'text'; }).map(function (b) { return b.text; }).join('');
-  var t = text.replace(/```(?:json)?/g, '').trim(), a = t.indexOf('{'), z = t.lastIndexOf('}');
+  var list = Object.keys(blocks).sort(function (a, b) { return a - b; }).map(function (k) { return blocks[k]; });
+  var use = list.filter(function (b) { return b.type === 'tool_use'; })[0];
+  if (use) { try { return JSON.parse(use.json || '{}'); } catch (e) {} }
+  var t = list.filter(function (b) { return b.type === 'text'; }).map(function (b) { return b.text; }).join('').replace(/```(?:json)?/g, '').trim();
+  var a = t.indexOf('{'), z = t.lastIndexOf('}');
   if (a >= 0 && z > a) { try { return JSON.parse(t.slice(a, z + 1)); } catch (e) {} }
   throw new Error('Claude\u2019s reply couldn\u2019t be read. Try again.');
 }
@@ -1358,11 +1397,19 @@ $('reviewBtn').addEventListener('click', async function () {
     setStatus('review', 'Reviewing against the rubric. A full Note takes a minute or two\u2026');
     var r;
     try {
-      r = await callClaude(buildReviewPrompt(snap, null), REVIEW_TOOL, 20000);
+      r = await callClaude(buildReviewPrompt(snap, null), REVIEW_TOOL, 20000, function (n) {
+        setStatus('review', 'Writing the review\u2026 ' + n.toLocaleString() + ' characters so far');
+      });
     } catch (e) {
       if (e.code !== 'max_tokens') throw e;
       setStatus('review', 'Long Note: grading it in three parts at once. Each part reads the whole Note\u2026');
-      var parts = await Promise.all(REVIEW_PARTS.map(function (p) { return callClaude(buildReviewPrompt(snap, p), REVIEW_TOOL, 16000); }));
+      var sofar = REVIEW_PARTS.map(function () { return 0; });
+      var parts = await Promise.all(REVIEW_PARTS.map(function (p, k) {
+        return callClaude(buildReviewPrompt(snap, p), REVIEW_TOOL, 16000, function (n) {
+          sofar[k] = n;
+          setStatus('review', 'Grading in three parts\u2026 ' + sofar.reduce(function (x, y) { return x + y; }, 0).toLocaleString() + ' characters so far');
+        });
+      }));
       r = mergeReviews(parts);
     }
     renderReview(r);
