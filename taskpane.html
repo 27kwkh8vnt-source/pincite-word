@@ -342,7 +342,7 @@ Office.onReady(function (info) {
 /* ======================================================================
    Shared: Claude
    ====================================================================== */
-async function callClaude(prompt, tool) {
+async function callClaude(prompt, tool, maxTokens) {
   if (!getKey()) { alertKey('Add your Anthropic API key first.'); throw new Error('Add your Anthropic API key first.'); }
   var resp;
   try {
@@ -355,7 +355,7 @@ async function callClaude(prompt, tool) {
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
-        model: MODEL, max_tokens: MAX_TOKENS,
+        model: MODEL, max_tokens: maxTokens || MAX_TOKENS,
         tools: [tool], tool_choice: { type: 'auto' },
         messages: [{ role: 'user', content: prompt }]
       })
@@ -373,7 +373,11 @@ async function callClaude(prompt, tool) {
     throw new Error('Anthropic API error ' + resp.status + (msg ? ': ' + msg : '.'));
   }
   var data = JSON.parse(body);
-  if (data.stop_reason === 'max_tokens') throw new Error('The reply ran out of room. Try a smaller section.');
+  if (data.stop_reason === 'max_tokens') {
+    var err = new Error('Claude\u2019s reply was longer than the space allowed.');
+    err.code = 'max_tokens';
+    throw err;
+  }
   var use = (data.content || []).filter(function (b) { return b.type === 'tool_use'; })[0];
   if (use && use.input) return use.input;
   var text = (data.content || []).filter(function (b) { return b.type === 'text'; }).map(function (b) { return b.text; }).join('');
@@ -737,6 +741,12 @@ $('checkBtn').addEventListener('click', async function () {
       Array.prototype.push.apply(acc.edits, r.edits);
       Array.prototype.push.apply(acc.flags, r.flags);
     } catch (e) {
+      if (e.code === 'max_tokens' && chunks[done].items.length > 1) {
+        // Too many citations for one reply: split this part in half and redo it.
+        var c = chunks[done], mid = Math.ceil(c.items.length / 2);
+        chunks.splice(done, 1, { kind: c.kind, items: c.items.slice(0, mid) }, { kind: c.kind, items: c.items.slice(mid) });
+        done--; continue;
+      }
       note = (chunks.length > 1 ? 'Part ' + (done + 1) + ' of ' + chunks.length + ' failed: ' : '') + e.message;
       if (done > 0) note += ' Results from the earlier parts are below.';
       isErr = true; break;
@@ -1274,7 +1284,7 @@ var REVIEW_TOOL = {
       } },
       did_well: { type: 'string' }, could_improve: { type: 'string' }, publication: { type: 'string' }
     },
-    required: ['categories', 'did_well', 'could_improve', 'publication']
+    required: ['categories']
   }
 };
 
@@ -1302,7 +1312,11 @@ async function noteSnapshot() {
   });
 }
 
-function buildReviewPrompt(snap) {
+// part: null for the whole rubric at once, or { cats: [...], thesis, sources, feedback } for one slice.
+function buildReviewPrompt(snap, part) {
+  var only = part ? part.cats : RUBRIC.map(function (c) { return c.name; });
+  var wants = function (k) { return !part || !!part[k]; };
+  var has = function (name) { return only.indexOf(name) >= 0; };
   return [
     'You are a member of the Executive Board of the Brooklyn Law School Journal of Law and Policy (JLP), grading a staff writer\'s Note anonymously for publication. A Note identifies a legal or policy problem and offers the author\'s own unique solution. Grade candidly and specifically: do not inflate scores, and do not soften real problems. Your job is to help the author revise before submission.',
     '',
@@ -1313,13 +1327,17 @@ function buildReviewPrompt(snap) {
     'Journal requirements: 30\u201335 pages including footnotes; at least 175 footnotes; most sentences should have citations; at least 35 unique sources (publishable Notes in recent years had at least 65); NO short citations of any kind (no "id.", "supra", or short forms); any borrowed language must be in quotation marks and footnoted.',
     '',
     'INSTRUCTIONS',
-    '- Score every rubric category (use the exact category names above, with "max" as listed). Scores may use halves.',
+    part
+      ? '- Read the WHOLE Note, but score ONLY these categories (other reviewers handle the rest): ' + only.join('; ') + '. Use the exact category names and "max" values above. Scores may use halves.'
+      : '- Score every rubric category (use the exact category names above, with "max" as listed). Scores may use halves.',
+    '- Keep it tight: the assessment is two or three sentences, and each problem and suggestion is one sentence.',
     '- For each category, list the most important specific problems (up to 5), most important first. Each issue needs a "quote": text copied EXACTLY from the Note, under 150 characters, that locates the problem (leave it empty only for whole-Note issues). Give a concrete suggestion for each; do not rewrite the Note for the author.',
-    '- Writing Mechanics: point to actual awkward sentences, run-ons, grammar, spelling, and punctuation errors you find, quoting them.',
-    '- Legal Analysis: say whether counterarguments are raised and answered, and whether the proposed solution is concrete and supported.',
-    '- Use of Citations: count UNIQUE sources from the footnotes (each distinct authority once; repeated full citations are the same source) and break them down by type. Note any short citations (id., supra, short forms), since the journal forbids them. Paragraphs marked [no footnotes] are uncited.',
-    '- You cannot verify preemption or whether the topic is truly novel. Judge novelty only from how the Note frames its contribution, and say so if relevant.',
-    '- Then fill in the board\'s feedback questions: something the author did well, something the author could improve upon, and why (or why not) the Note should be recommended for publication.',
+    !has('Writing Mechanics and Small-Scale Organization') ? '' : '- Writing Mechanics: point to actual awkward sentences, run-ons, grammar, spelling, and punctuation errors you find, quoting them.',
+    !has('Legal Analysis') ? '' : '- Legal Analysis: say whether counterarguments are raised and answered, and whether the proposed solution is concrete and supported.',
+    !wants('sources') ? '' : '- Use of Citations: count UNIQUE sources from the footnotes (each distinct authority once; repeated full citations are the same source) and break them down by type. Note any short citations (id., supra, short forms), since the journal forbids them. Paragraphs marked [no footnotes] are uncited.',
+    !has('Topic') && !has('Thesis and Introduction') ? '' : '- You cannot verify preemption or whether the topic is truly novel. Judge novelty only from how the Note frames its contribution, and say so if relevant.',
+    !wants('thesis') ? '' : '- Fill in thesis_quote (the sentence stating the thesis, copied exactly) and roadmap_found.',
+    !wants('feedback') ? '' : '- Then fill in the board\'s feedback questions: something the author did well, something the author could improve upon, and why (or why not) the Note should be recommended for publication.',
     '- You MUST submit by calling the submit_review tool exactly once. Do not answer in plain text.',
     '',
     'THE NOTE (paragraph text; headings marked ###; block quotes marked >; footnote numbers in brackets after each paragraph)',
@@ -1327,7 +1345,7 @@ function buildReviewPrompt(snap) {
     '',
     'FOOTNOTES' + (snap.fnCount != null ? ' (' + snap.fnCount + ' total)' : ''),
     '"""', snap.footnotes, '"""'
-  ].join('\n');
+  ].filter(function (l, i, arr) { return l !== '' || arr[i - 1] !== ''; }).join('\n');
 }
 
 $('reviewBtn').addEventListener('click', async function () {
@@ -1338,7 +1356,15 @@ $('reviewBtn').addEventListener('click', async function () {
     var snap = await noteSnapshot();
     if (snap.text.replace(/\s/g, '').length < 500) throw new Error('There isn\u2019t enough text to review yet.');
     setStatus('review', 'Reviewing against the rubric. A full Note takes a minute or two\u2026');
-    var r = await callClaude(buildReviewPrompt(snap), REVIEW_TOOL);
+    var r;
+    try {
+      r = await callClaude(buildReviewPrompt(snap, null), REVIEW_TOOL, 20000);
+    } catch (e) {
+      if (e.code !== 'max_tokens') throw e;
+      setStatus('review', 'Long Note: grading it in three parts at once. Each part reads the whole Note\u2026');
+      var parts = await Promise.all(REVIEW_PARTS.map(function (p) { return callClaude(buildReviewPrompt(snap, p), REVIEW_TOOL, 16000); }));
+      r = mergeReviews(parts);
+    }
     renderReview(r);
     setStatus('review', 'Done. Click any quoted passage to jump to it.');
   } catch (e) {
@@ -1346,6 +1372,24 @@ $('reviewBtn').addEventListener('click', async function () {
   }
   setAllBusy(false);
 });
+
+var REVIEW_PARTS = [
+  { cats: ['Topic', 'Thesis and Introduction'], thesis: true },
+  { cats: ['Writing Mechanics and Small-Scale Organization', 'Large Scale Organization'] },
+  { cats: ['Legal Analysis', 'Use of Citations'], sources: true, feedback: true }
+];
+function mergeReviews(parts) {
+  var out = { categories: [] };
+  parts.forEach(function (p) {
+    (p.categories || []).forEach(function (c) { out.categories.push(c); });
+    ['thesis_quote', 'roadmap_found', 'sources', 'did_well', 'could_improve', 'publication'].forEach(function (k) {
+      if (p[k] != null && p[k] !== '' && out[k] == null) out[k] = p[k];
+    });
+  });
+  var order = RUBRIC.map(function (c) { return c.name.toLowerCase(); });
+  out.categories.sort(function (a, b) { return order.indexOf(String(a.name).toLowerCase()) - order.indexOf(String(b.name).toLowerCase()); });
+  return out;
+}
 
 var reviewQuotes = [];
 function renderReview(r) {
@@ -1379,7 +1423,7 @@ function renderReview(r) {
       }).join('') + '</div>';
   });
 
-  html += '<h2>Board feedback</h2><ul class="listblock">' +
+  if (r.did_well || r.could_improve || r.publication) html += '<h2>Board feedback</h2><ul class="listblock">' +
     '<li><b>Did well:</b> ' + esc(r.did_well) + '</li>' +
     '<li><b>Could improve:</b> ' + esc(r.could_improve) + '</li>' +
     '<li><b>Publication:</b> ' + esc(r.publication) + '</li></ul>';
