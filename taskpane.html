@@ -34,7 +34,7 @@
   h1 { font: 600 24px/1 var(--serif); margin: 0; }
   .mast p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
 
-  .tabs { display: grid; grid-template-columns: repeat(3, 1fr); border-bottom: 1px solid var(--rule); margin: 0 -14px 16px; padding: 0 14px; }
+  .tabs { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--rule); margin: 0 -14px 16px; padding: 0 14px; }
   .tabs button { border: 0; background: none; padding: 8px 0 9px; font-weight: 600; font-size: 13px; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
   .tabs button[aria-selected="true"] { color: var(--binding); border-bottom-color: var(--binding); }
 
@@ -142,6 +142,22 @@
   .listblock { font-size: 12.5px; margin: 0; padding-left: 18px; }
   .listblock li { margin-bottom: 4px; }
   .callout { background: var(--surface); border: 1px solid var(--rule); border-radius: 9px; padding: 10px 12px; font-size: 12.5px; margin-top: 8px; }
+  .diff del { background: var(--flag-soft); color: var(--flag); text-decoration: line-through; border-radius: 2px; }
+  .diff ins { background: var(--ok-soft); color: var(--ok); text-decoration: none; border-radius: 2px; }
+  .kind { display: inline-block; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-right: 6px; }
+  .plan-item { display: grid; grid-template-columns: 18px 1fr; gap: 6px; padding: 8px 0; border-top: 1px solid var(--rule); font-size: 12.5px; }
+  .plan-item input { margin: 4px 0 0; accent-color: var(--binding); }
+  .ptype { display: inline-block; font-size: 11px; font-weight: 700; border-radius: 4px; padding: 0 6px; margin-right: 4px; }
+  .ptype.change { background: var(--binding-soft); color: var(--binding); }
+  .ptype.remove { background: var(--flag-soft); color: var(--flag); }
+  .ptype.move { background: var(--warn-soft); color: var(--warn); }
+  .ptype.expand { background: var(--ok-soft); color: var(--ok); }
+  .meta { color: var(--muted); font-size: 11.5px; }
+  .pq { font-family: var(--serif); color: var(--muted); margin: 4px 0 0; border-left: 2px solid var(--rule); padding-left: 8px; cursor: pointer; }
+  .pq:hover { border-left-color: var(--binding); color: var(--ink); }
+  .prew { font-family: var(--serif); margin: 4px 0 0; padding-left: 10px; border-left: 2px solid var(--ok); }
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+  .filters .chip[aria-pressed="true"] { background: var(--binding); color: var(--binding-ink); border-color: var(--binding); }
   @media (prefers-reduced-motion: reduce) { .thumb, .switch button, .progress div { transition: none; } }
 </style>
 </head>
@@ -158,7 +174,8 @@
   </div>
 
   <div class="tabs" role="tablist" aria-label="Pincite tools">
-    <button role="tab" id="tab-cite" aria-controls="panel-cite" aria-selected="true">Cite check</button>
+    <button role="tab" id="tab-cite" aria-controls="panel-cite" aria-selected="true">Citations</button>
+    <button role="tab" id="tab-proof" aria-controls="panel-proof" aria-selected="false">Proofread</button>
     <button role="tab" id="tab-format" aria-controls="panel-format" aria-selected="false">Format</button>
     <button role="tab" id="tab-review" aria-controls="panel-review" aria-selected="false">Review</button>
   </div>
@@ -207,6 +224,35 @@
     </div>
 
     <p class="foot">Highlighted <mark class="pin">___</mark> blanks mark pinpoints or other details missing from your draft. Pincite never guesses them, and it doesn&#x2019;t look sources up, so verify every citation. Applied changes can be undone with Edit &gt; Undo.</p>
+  </section>
+
+  <!-- ================= PROOFREAD ================= -->
+  <section role="tabpanel" id="panel-proof" aria-labelledby="tab-proof" hidden>
+    <p class="note" style="margin-top:0">Finds spelling, grammar, and punctuation mistakes. Quotations, citations, and your word choices are left alone; nothing changes until you pick which fixes to apply.</p>
+    <div class="field" style="margin-top:12px">
+      <p class="field-label" id="proofScopeLabel">Check</p>
+      <div class="switch quiet" role="radiogroup" aria-labelledby="proofScopeLabel" id="proofScopeSwitch" data-value="a">
+        <span class="thumb" aria-hidden="true"></span>
+        <button role="radio" aria-checked="true" data-v="document">Whole document</button>
+        <button role="radio" aria-checked="false" data-v="selection">Selection</button>
+      </div>
+    </div>
+    <label class="check"><input type="checkbox" id="proofNotes" checked><span>Include footnotes</span></label>
+    <label class="check"><input type="checkbox" id="proofTrack"><span>Apply as tracked changes<small>Lets you accept or reject each fix in Word&#x2019;s Review tab. Accept them all and turn tracking off before you submit.</small></span></label>
+    <div class="run-row">
+      <button class="primary" id="proofBtn">Find typos</button>
+      <button class="secondary" id="proofStop" hidden>Stop</button>
+    </div>
+    <div class="progress" id="proofProgress" hidden><div id="proofBar"></div></div>
+    <p class="status" id="status-proof" role="status" aria-live="polite"></p>
+    <div id="proofResults" hidden>
+      <div id="proofFlagsWrap"><h2>Check these yourself <span id="proofFlagCount"></span></h2><div id="proofFlags"></div></div>
+      <h2>Fixes <span id="proofCount"></span></h2>
+      <p class="hint">Click a fix to jump to it. Untick any you don&#x2019;t want.</p>
+      <div class="selectall"><button class="linkbtn" id="proofAll">Select all</button><button class="linkbtn" id="proofNone">None</button></div>
+      <div id="proofEdits"></div>
+      <div class="applybar"><button class="primary" id="proofApply">Apply selected fixes</button></div>
+    </div>
   </section>
 
   <!-- ================= FORMAT ================= -->
@@ -270,6 +316,25 @@
     </div>
     <p class="status" id="status-review" role="status" aria-live="polite"></p>
     <div id="reviewOut" hidden></div>
+    <div id="planBox" hidden>
+      <h2>Revision plan</h2>
+      <p class="note" style="margin-top:0">Concrete fixes for the problems above: what to rewrite, cut, move, or expand, tied to the passages in your Note.</p>
+      <button class="primary" id="planBtn" style="margin-top:10px">Suggest revisions</button>
+      <p class="status" id="status-plan" role="status" aria-live="polite"></p>
+      <div id="planOut" hidden>
+        <div class="filters" id="planFilters"></div>
+        <div class="selectall"><button class="linkbtn" id="planAll">Select all</button><button class="linkbtn" id="planNone">None</button></div>
+        <div id="planItems"></div>
+        <div class="applybar">
+          <label class="check" style="margin-bottom:8px"><input type="checkbox" id="planTrack" checked><span>Apply as tracked changes<small>Rewrites and cuts show up in Word&#x2019;s Review tab to accept or reject. Moves and expansions always become comments, since they need your judgment.</small></span></label>
+          <div class="btn-pair">
+            <button class="secondary" id="planComment">Add as comments</button>
+            <button class="primary" id="planApply">Apply selected</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="foot">Suggested rewrites are a starting point in your voice, not finished text. Before using wording Claude suggests, check your journal&#x2019;s and school&#x2019;s rules on AI assistance, since the Note is graded as your own work. Comments and tracked changes carry your Word user name: delete comments and accept all changes before you submit.</p>
     <p class="foot">An estimate to guide revisions, not a prediction of the Board&#x2019;s decision. It can&#x2019;t check preemption, so keep searching for other articles on your topic yourself.</p>
   </section>
 
@@ -297,7 +362,7 @@ function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').repla
 /* ======================================================================
    Tabs, key, startup
    ====================================================================== */
-var tabs = ['cite', 'format', 'review'];
+var tabs = ['cite', 'proof', 'format', 'review'];
 function showTab(name) {
   tabs.forEach(function (t) {
     $('tab-' + t).setAttribute('aria-selected', String(t === name));
@@ -324,7 +389,7 @@ function alertKey(msg) { $('keyBox').hidden = false; $('keyBox').querySelector('
 $('changeKey').addEventListener('click', function () { $('keyBox').hidden = false; $('keyInput').focus(); });
 
 function setAllBusy(on) {
-  ['checkBtn', 'applyBtn', 'fixBtn', 'reqBtn', 'reviewBtn', 'addIdBtn'].forEach(function (id) { $(id).disabled = on; });
+  ['checkBtn', 'applyBtn', 'fixBtn', 'reqBtn', 'reviewBtn', 'addIdBtn', 'proofBtn', 'proofApply', 'planBtn', 'planApply', 'planComment'].forEach(function (id) { $(id).disabled = on; });
   document.querySelectorAll('.switch button').forEach(function (b) { b.disabled = on; });
 }
 
@@ -517,7 +582,7 @@ async function snapshot(scope) {
   });
 }
 
-function planChunks(snap) {
+function planChunks(snap, sc, withNotes) {
   var chunks = [];
   function pack(kind, indices, texts) {
     var cur = [], size = 0;
@@ -529,11 +594,11 @@ function planChunks(snap) {
     });
     if (cur.length) chunks.push({ kind: kind, items: cur });
   }
-  var from = scope === 'selection' ? snap.first : 0;
-  var to = scope === 'selection' ? snap.last : snap.paras.length - 1;
+  var from = sc === 'selection' ? snap.first : 0;
+  var to = sc === 'selection' ? snap.last : snap.paras.length - 1;
   var idx = []; for (var i = from; i <= to; i++) idx.push(i);
   pack('body', idx, snap.paras);
-  if (scope === 'document' && snap.notes.length) {
+  if (sc === 'document' && withNotes && snap.notes.length) {
     var n = []; for (var j = 0; j < snap.notes.length; j++) n.push(j);
     pack('notes', n, snap.notes);
   }
@@ -766,7 +831,7 @@ $('checkBtn').addEventListener('click', async function () {
     setStatus('cite', scope === 'selection' ? 'Select text in the main body of your document, then try again.' : 'Couldn\u2019t read the document: ' + e.message, true);
     return;
   }
-  var chunks = planChunks(snap);
+  var chunks = planChunks(snap, scope, true);
   if (!chunks.length) { finishCite(); setStatus('cite', 'There\u2019s no text to check.', true); return; }
 
   var acc = { mode: runMode, edits: [], flags: [] }, note = '', isErr = false, done = 0;
@@ -1412,7 +1477,9 @@ $('reviewBtn').addEventListener('click', async function () {
       }));
       r = mergeReviews(parts);
     }
+    lastReview = r;
     renderReview(r);
+    $('planBox').hidden = false; $('planOut').hidden = true; setStatus('plan', '');
     setStatus('review', 'Done. Click any quoted passage to jump to it.');
   } catch (e) {
     setStatus('review', e.message, true);
@@ -1486,6 +1553,434 @@ $('reviewOut').addEventListener('keydown', function (ev) {
   if (ev.key !== 'Enter' && ev.key !== ' ') return;
   var el = ev.target.closest('[data-q]'); if (el) { ev.preventDefault(); jumpQuote(el); }
 });
+
+/* ======================================================================
+   SHARED: apply find/replace edits, optionally as tracked changes
+   ====================================================================== */
+async function withTracking(ctx, on, fn) {
+  var prev = null;
+  if (on && hasApi14) {
+    ctx.document.load('changeTrackingMode'); await ctx.sync();
+    prev = ctx.document.changeTrackingMode;
+    ctx.document.changeTrackingMode = 'TrackAll'; await ctx.sync();
+  }
+  try { return await fn(); }
+  finally {
+    if (prev !== null) { ctx.document.changeTrackingMode = prev; await ctx.sync(); }
+  }
+}
+
+function diffHtml(a, b) {
+  var p = 0; while (p < a.length && p < b.length && a[p] === b[p]) p++;
+  var s = 0; while (s < a.length - p && s < b.length - p && a[a.length - 1 - s] === b[b.length - 1 - s]) s++;
+  return '<span class="diff">' + esc(a.slice(0, p)) +
+    (a.slice(p, a.length - s) ? '<del>' + esc(a.slice(p, a.length - s)) + '</del>' : '') +
+    (b.slice(p, b.length - s) ? '<ins>' + esc(b.slice(p, b.length - s)) + '</ins>' : '') +
+    esc(a.slice(a.length - s)) + '</span>';
+}
+
+/* Finds passages by quoted text: exact first, then by their opening words; main text, then footnotes. */
+async function locatePassages(ctx, quotes) {
+  var body = ctx.document.body;
+  var cleaned = quotes.map(function (q) { return String(q || '').replace(/\s+/g, ' ').trim(); });
+  var tries = cleaned.map(function (c) {
+    var w = c.split(' ');
+    return [c.length <= 255 ? c : '', w.slice(0, 12).join(' ').slice(0, 255), w.slice(0, 7).join(' ')];
+  });
+  var found = quotes.map(function () { return null; });
+  var notes = null;
+  if (hasFootnoteApi) { notes = body.footnotes; notes.load('items'); await ctx.sync(); }
+  for (var level = 0; level < 3; level++) {
+    var pend = [];
+    cleaned.forEach(function (c, i) {
+      var t = tries[i][level];
+      if (found[i] || !t || (level > 0 && t === tries[i][level - 1])) return;
+      var r = body.search(t, { matchCase: false }); r.load('items');
+      pend.push({ i: i, r: r, t: t });
+    });
+    if (!pend.length) continue;
+    await ctx.sync();
+    var miss = [];
+    pend.forEach(function (p) {
+      if (p.r.items.length) found[p.i] = { range: p.r.items[0], exact: level === 0 };
+      else if (notes && notes.items.length) miss.push(p);
+    });
+    if (miss.length) {
+      var ns = miss.map(function (p) { return notes.items.map(function (n) { var r = n.body.search(p.t, { matchCase: false }); r.load('items'); return r; }); });
+      await ctx.sync();
+      miss.forEach(function (p, k) {
+        for (var j = 0; j < ns[k].length; j++) if (ns[k][j].items.length) { found[p.i] = { range: ns[k][j].items[0], exact: level === 0 }; break; }
+      });
+    }
+  }
+  return found;
+}
+
+/* ======================================================================
+   PROOFREAD
+   ====================================================================== */
+var proofScope = 'document', proofCurrent = null, proofStopping = false;
+wireSwitch('proofScopeSwitch', function (v) { proofScope = v; })('document');
+$('proofTrack').checked = store('proofTrack') === '1';
+$('proofTrack').addEventListener('change', function () { store('proofTrack', $('proofTrack').checked ? '1' : '0'); });
+
+var PROOF_TOOL = {
+  name: 'submit_proof_edits',
+  description: 'Submit the proofreading fixes and anything the author should check.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      edits: { type: 'array', items: { type: 'object', properties: {
+        target: { type: 'string' }, find: { type: 'string' }, occurrence: { type: 'integer' }, replace: { type: 'string' },
+        kind: { type: 'string', enum: ['spelling', 'grammar', 'punctuation', 'usage', 'capitalization'] },
+        why: { type: 'string', description: 'A few words, e.g. "misspelling" or "subject-verb agreement".' }
+      }, required: ['target', 'find', 'replace', 'kind'] } },
+      flags: { type: 'array', items: { type: 'object', properties: {
+        text: { type: 'string' }, issue: { type: 'string' }
+      }, required: ['text', 'issue'] } }
+    },
+    required: ['edits', 'flags']
+  }
+};
+
+function buildProofPrompt(targets) {
+  return [
+    'You are a careful copy editor proofreading a law student\'s law review Note. Fix ONLY clear mechanical errors in the TEXT TO CHECK:',
+    '- misspellings and typos; doubled words; a missing or wrong small word when the intended word is obvious;',
+    '- wrong word forms (its/it\'s, affect/effect, their/there, principal/principle), subject-verb agreement, tense slips, pronoun agreement;',
+    '- capitalization errors; punctuation errors (missing end punctuation, comma splices, misplaced apostrophes, unbalanced quotation marks or parentheses, hyphenation of compound modifiers).',
+    '',
+    'DO NOT CHANGE:',
+    '- Anything inside quotation marks or in a block quotation. Quoted material must match the source exactly. If a quotation seems to contain an error, add a flag suggesting the author check the source or add [sic].',
+    '- Citations, citation formatting, case names, statute and section numbers, or reporter abbreviations (a separate tool handles citations).',
+    '- Word choice, style, tone, sentence structure, or meaning. No rewriting for clarity or concision.',
+    '- Spacing between sentences (handled elsewhere). Legal terms of art and Latin phrases that are spelled correctly.',
+    '- If you are not sure something is an error, flag it instead of editing it.',
+    '',
+    'HOW TO WRITE EDITS',
+    '- Each line of the TEXT TO CHECK is one paragraph [P#] or one footnote [F#]. "target" is that label without brackets, e.g. "P12" or "F3".',
+    '- "find": the error plus just enough surrounding words to be unique, copied EXACTLY from that paragraph or footnote. At most 120 characters.',
+    '- "occurrence": which occurrence of "find" within that target (1 = first).',
+    '- "replace": the same text with only the error fixed. Plain text, no markup.',
+    '- One edit per error. Edits must not overlap.',
+    '- You MUST submit by calling the submit_proof_edits tool exactly once. If there are no errors, call it with empty lists.',
+    '',
+    'TEXT TO CHECK',
+    '"""', targets, '"""'
+  ].join('\n');
+}
+
+$('proofStop').addEventListener('click', function () { proofStopping = true; $('proofStop').disabled = true; setStatus('proof', 'Stopping after this part\u2026'); });
+
+$('proofBtn').addEventListener('click', async function () {
+  if (!getKey()) { alertKey('Add your Anthropic API key first.'); return; }
+  proofStopping = false; setAllBusy(true); $('proofResults').hidden = true; proofCurrent = null;
+  $('proofStop').hidden = false; $('proofStop').disabled = false;
+  setStatus('proof', proofScope === 'selection' ? 'Reading your selection\u2026' : 'Reading the document\u2026');
+  var snap;
+  try { snap = await snapshot(proofScope); }
+  catch (e) {
+    endProof();
+    setStatus('proof', proofScope === 'selection' ? 'Select text in the main body of your document, then try again.' : 'Couldn\u2019t read the document: ' + e.message, true);
+    return;
+  }
+  var chunks = planChunks(snap, proofScope, $('proofNotes').checked);
+  if (!chunks.length) { endProof(); setStatus('proof', 'There\u2019s no text to check.', true); return; }
+
+  var acc = { edits: [], flags: [] }, note = '', isErr = false;
+  for (var done = 0; done < chunks.length; done++) {
+    if (proofStopping) { note = 'Stopped after ' + done + ' of ' + chunks.length + ' parts. Fixes so far are below.'; break; }
+    $('proofProgress').hidden = false; $('proofBar').style.width = Math.round(done / chunks.length * 100) + '%';
+    setStatus('proof', chunks.length > 1 ? 'Proofreading part ' + (done + 1) + ' of ' + chunks.length + '\u2026' : 'Proofreading\u2026');
+    var chunk = chunks[done];
+    try {
+      var res = await callClaude(buildProofPrompt(targetsFor(snap, chunk)), PROOF_TOOL);
+      var allowed = {};
+      chunk.items.forEach(function (i) { allowed[chunk.kind === 'body' ? 'P' + i : 'F' + (i + 1)] = true; });
+      (res.edits || []).forEach(function (e) {
+        var target = String(e.target || '').replace(/[\[\]\s]/g, '').toUpperCase();
+        var find = String(e.find || ''), replace = String(e.replace || '');
+        if (!allowed[target] || !find || find === replace) return;
+        acc.edits.push({ target: target, find: find, replace: replace, occurrence: Math.max(1, Number(e.occurrence) || 1), kind: String(e.kind || ''), why: String(e.why || ''), found: false });
+      });
+      (res.flags || []).forEach(function (f) { if (f.issue) acc.flags.push({ text: String(f.text || ''), issue: String(f.issue) }); });
+    } catch (e) {
+      if (e.code === 'max_tokens' && chunk.items.length > 1) {
+        var mid = Math.ceil(chunk.items.length / 2);
+        chunks.splice(done, 1, { kind: chunk.kind, items: chunk.items.slice(0, mid) }, { kind: chunk.kind, items: chunk.items.slice(mid) });
+        done--; continue;
+      }
+      note = (chunks.length > 1 ? 'Part ' + (done + 1) + ' failed: ' : '') + e.message + (done > 0 ? ' Fixes from earlier parts are below.' : '');
+      isErr = true; break;
+    }
+  }
+  acc.edits.forEach(function (e, i) { e.id = i; });
+  if (acc.edits.length) {
+    try {
+      await Word.run(async function (ctx) {
+        var ranges = await findRanges(ctx, acc.edits);
+        ranges.forEach(function (r, i) { acc.edits[i].found = !!r; });
+      });
+    } catch (e) {}
+  }
+  endProof();
+  proofCurrent = acc;
+  renderProof(acc, note, isErr);
+});
+function endProof() { setAllBusy(false); $('proofStop').hidden = true; $('proofProgress').hidden = true; }
+
+function renderProof(r, note, isErr) {
+  $('proofFlagsWrap').hidden = !r.flags.length;
+  $('proofFlagCount').textContent = r.flags.length ? '(' + r.flags.length + ')' : '';
+  $('proofFlags').innerHTML = r.flags.map(function (f) { return '<div class="flag"><cite>' + esc(f.text) + '</cite>' + esc(f.issue) + '</div>'; }).join('');
+  var edits = r.edits;
+  $('proofCount').textContent = edits.length ? '(' + edits.length + ')' : '';
+  $('proofEdits').innerHTML = edits.length ? edits.map(function (e) {
+    var where = e.target[0] === 'F' ? '<span class="tag">Footnote ' + e.target.slice(1) + '</span> ' : '';
+    return '<div class="edit' + (e.found ? '' : ' missing') + '">' +
+      '<input type="checkbox" aria-label="Apply this fix" data-id="' + e.id + '"' + (e.found ? ' checked' : ' disabled') + '>' +
+      '<div class="jump"' + (e.found ? ' role="button" tabindex="0" title="Show in document" data-jump="' + e.id + '"' : '') + '>' +
+      where + '<span class="kind">' + esc(e.kind) + '</span>' +
+      '<div class="after">' + diffHtml(e.find, e.replace) + '</div>' +
+      '<div class="why">' + esc(e.why) + (e.found ? '' : ' <b style="color:var(--flag)">Couldn\u2019t find this text, so it will be skipped.</b>') + '</div></div></div>';
+  }).join('') : '<p class="none">No typos found.</p>';
+  $('proofApply').hidden = !edits.some(function (e) { return e.found; });
+  $('proofResults').hidden = false;
+  setStatus('proof', note || (edits.length ? 'Review the fixes, then apply the ones you want.' : 'Done. No typos found.'), isErr);
+}
+
+$('proofEdits').addEventListener('click', function (ev) { var el = ev.target.closest('[data-jump]'); if (el) jumpProof(el); });
+$('proofEdits').addEventListener('keydown', function (ev) {
+  if (ev.key !== 'Enter' && ev.key !== ' ') return;
+  var el = ev.target.closest('[data-jump]'); if (el) { ev.preventDefault(); jumpProof(el); }
+});
+async function jumpProof(el) {
+  var e = proofCurrent && proofCurrent.edits[Number(el.dataset.jump)]; if (!e) return;
+  document.querySelectorAll('#proofEdits .jump.active').forEach(function (x) { x.classList.remove('active'); });
+  el.classList.add('active');
+  try {
+    await Word.run(async function (ctx) {
+      var r = (await findRanges(ctx, [e]))[0];
+      if (!r) throw new Error('Couldn\u2019t find that text. It may have changed; run the check again.');
+      r.select(); await ctx.sync();
+    });
+  } catch (err) { setStatus('proof', err.message, true); }
+}
+$('proofAll').addEventListener('click', function () { document.querySelectorAll('#proofEdits input:not(:disabled)').forEach(function (c) { c.checked = true; }); });
+$('proofNone').addEventListener('click', function () { document.querySelectorAll('#proofEdits input').forEach(function (c) { c.checked = false; }); });
+
+$('proofApply').addEventListener('click', async function () {
+  if (!proofCurrent) return;
+  var ids = {};
+  document.querySelectorAll('#proofEdits input:checked').forEach(function (c) { ids[c.dataset.id] = true; });
+  var chosen = proofCurrent.edits.filter(function (e) { return ids[e.id]; });
+  if (!chosen.length) { setStatus('proof', 'Select at least one fix.', true); return; }
+  var track = $('proofTrack').checked;
+  setAllBusy(true); setStatus('proof', 'Applying ' + chosen.length + ' fix' + (chosen.length === 1 ? '' : 'es') + '\u2026');
+  try {
+    var result = await Word.run(async function (ctx) {
+      var ranges = await findRanges(ctx, chosen);
+      return withTracking(ctx, track, async function () {
+        var applied = 0, skipped = 0;
+        ranges.forEach(function (r, i) { if (!r) { skipped++; return; } r.insertText(chosen[i].replace, 'Replace'); applied++; });
+        await ctx.sync();
+        return { applied: applied, skipped: skipped };
+      });
+    });
+    $('proofResults').hidden = true; proofCurrent = null;
+    setStatus('proof', 'Applied ' + result.applied + ' fix' + (result.applied === 1 ? '' : 'es') + (track ? ' as tracked changes' : '') + '.' +
+      (result.skipped ? ' Skipped ' + result.skipped + ' whose text had changed.' : '') + (track ? '' : ' Undo with Edit > Undo.'));
+  } catch (e) { setStatus('proof', 'Couldn\u2019t apply the fixes: ' + e.message, true); }
+  setAllBusy(false);
+});
+
+/* ======================================================================
+   REVISION PLAN
+   ====================================================================== */
+var lastReview = null, planCurrent = null, planFilter = 'all';
+var PLAN_TOOL = {
+  name: 'submit_revision_plan',
+  description: 'Submit concrete revision suggestions tied to passages in the Note.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      suggestions: { type: 'array', items: { type: 'object', properties: {
+        type: { type: 'string', enum: ['change', 'remove', 'move', 'expand'] },
+        category: { type: 'string', description: 'The rubric category this improves.' },
+        priority: { type: 'string', enum: ['high', 'medium', 'low'] },
+        quote: { type: 'string', description: 'Exact text from the Note locating the passage (see rules).' },
+        scope: { type: 'string', enum: ['passage', 'paragraph'], description: 'For remove: cut just the quoted passage, or the whole paragraph it starts.' },
+        replacement: { type: 'string', description: 'For change: the rewritten passage.' },
+        destination_quote: { type: 'string', description: 'For move: exact opening words of the paragraph to move it next to.' },
+        position: { type: 'string', enum: ['before', 'after'] },
+        explanation: { type: 'string', description: 'Why, and for expand: what to add.' }
+      }, required: ['type', 'category', 'priority', 'quote', 'explanation'] } }
+    },
+    required: ['suggestions']
+  }
+};
+
+function reviewDigest(r) {
+  if (!r || !r.categories) return '(none)';
+  return r.categories.map(function (c) {
+    return c.name + ' ' + c.score + '/' + c.max + ': ' + c.assessment + (c.issues || []).map(function (i) {
+      return '\n  - ' + i.problem + (i.quote ? ' [at: "' + i.quote + '"]' : '');
+    }).join('');
+  }).join('\n') + (r.could_improve ? '\nOverall: ' + r.could_improve : '');
+}
+
+function buildPlanPrompt(snap, review) {
+  return [
+    'You are an experienced law review Notes editor helping a student revise their Note before it is graded for publication under the rubric below. The review already identified problems; now give CONCRETE, ACTIONABLE revisions, tied to exact passages, that would raise the score the most.',
+    '',
+    'RUBRIC: ' + RUBRIC.map(function (c) { return c.name + ' (' + c.max + ')'; }).join('; '),
+    '',
+    'REVIEW FINDINGS',
+    reviewDigest(review),
+    '',
+    'SUGGESTION TYPES',
+    '- change: rewrite a sentence or two for clarity, flow, a stronger topic sentence or transition, a sharper thesis or roadmap sentence. "quote" is the EXACT passage to replace (at most 250 characters, copied character for character); "replacement" is the rewritten passage. Keep the author\'s voice and meaning. Keep any citations and footnote references as they are. Never alter text inside quotation marks.',
+    '- remove: cut redundant, tangential, or repetitive material. scope "passage": "quote" is the exact text to cut (at most 250 characters). scope "paragraph": "quote" is the exact first 10 to 15 words of the paragraph to cut.',
+    '- move: a paragraph that belongs elsewhere for better large-scale organization. "quote" is the exact first 10 to 15 words of the paragraph to move; "destination_quote" is the exact first 10 to 15 words of the paragraph it should go before or after; "position" says which.',
+    '- expand: where analysis, support, counterarguments, or the solution is thin. "quote" is exact text where the addition belongs (at most 150 characters). In "explanation", say specifically what is missing, the questions the new material should answer, and the kinds of sources to look for. Do NOT write the new content for the author.',
+    '',
+    'RULES',
+    '- 15 to 25 suggestions, highest-impact first, covering the most heavily weighted problems (Legal Analysis and Writing first). Mark priority honestly.',
+    '- Every quote must be copied EXACTLY from the Note text below (main text unless the problem is in a footnote), so the author\'s software can find it.',
+    '- Never invent facts, cases, statutes, or sources. Do not suggest citation-format changes (a separate tool handles those).',
+    '- Explanations are one to three sentences, specific to this Note.',
+    '- You MUST submit by calling the submit_revision_plan tool exactly once.',
+    '',
+    'THE NOTE (headings marked ###; block quotes marked >)',
+    '"""', snap.text, '"""',
+    '',
+    'FOOTNOTES',
+    '"""', snap.footnotes, '"""'
+  ].join('\n');
+}
+
+$('planBtn').addEventListener('click', async function () {
+  if (!lastReview) { setStatus('plan', 'Run the review first.', true); return; }
+  setAllBusy(true); $('planOut').hidden = true;
+  setStatus('plan', 'Reading your Note\u2026');
+  try {
+    var snap = await noteSnapshot();
+    var res = await callClaude(buildPlanPrompt(snap, lastReview), PLAN_TOOL, 24000, function (n) {
+      setStatus('plan', 'Drafting revisions\u2026 ' + n.toLocaleString() + ' characters so far');
+    });
+    var list = (res.suggestions || []).filter(function (s) { return s && s.type && s.quote; }).map(function (s, i) {
+      return {
+        id: i, type: s.type, category: String(s.category || ''), priority: String(s.priority || 'medium'),
+        quote: String(s.quote), scope: s.scope === 'paragraph' ? 'paragraph' : 'passage',
+        replacement: String(s.replacement || ''), destination_quote: String(s.destination_quote || ''),
+        position: s.position === 'before' ? 'before' : 'after', explanation: String(s.explanation || ''), found: null
+      };
+    });
+    // Check which passages can be found in the document.
+    await Word.run(async function (ctx) {
+      var locs = await locatePassages(ctx, list.map(function (s) { return s.quote; }));
+      list.forEach(function (s, i) { s.found = !!locs[i]; s.exact = !!(locs[i] && locs[i].exact); });
+    });
+    planCurrent = list; planFilter = 'all';
+    renderPlan();
+    setStatus('plan', list.length ? 'Pick the suggestions you want, then apply them or add them as comments.' : 'No revisions suggested.');
+  } catch (e) {
+    setStatus('plan', e.code === 'max_tokens' ? 'The plan ran long. Try again; it usually fits on a second run.' : e.message, true);
+  }
+  setAllBusy(false);
+});
+
+var TYPE_LABEL = { change: 'Rewrite', remove: 'Cut', move: 'Move', expand: 'Expand' };
+function firstWords(q, n) { var w = String(q || '').replace(/\s+/g, ' ').trim().split(' '); return w.slice(0, n || 8).join(' ') + (w.length > (n || 8) ? '\u2026' : ''); }
+
+function renderPlan() {
+  var list = planCurrent || [];
+  var counts = { all: list.length };
+  list.forEach(function (s) { counts[s.type] = (counts[s.type] || 0) + 1; });
+  $('planFilters').innerHTML = ['all', 'change', 'remove', 'move', 'expand'].filter(function (t) { return counts[t]; }).map(function (t) {
+    return '<button class="chip" data-filter="' + t + '" aria-pressed="' + (planFilter === t) + '">' + (t === 'all' ? 'All' : TYPE_LABEL[t]) + ' ' + counts[t] + '</button>';
+  }).join('');
+  var shown = list.filter(function (s) { return planFilter === 'all' || s.type === planFilter; });
+  $('planItems').innerHTML = shown.map(function (s) {
+    var body = '<div><span class="ptype ' + s.type + '">' + TYPE_LABEL[s.type] + '</span><span class="meta">' + esc(s.priority) + ' priority \u00b7 ' + esc(s.category) + '</span>' +
+      '<div class="pq" role="button" tabindex="0" data-pq="' + s.id + '">' + esc(s.type === 'move' || s.scope === 'paragraph' ? firstWords(s.quote, 14) : s.quote) + '</div>';
+    if (s.type === 'change' && s.replacement) body += '<div class="prew">' + esc(s.replacement) + '</div>';
+    if (s.type === 'move') body += '<div class="meta" style="margin-top:4px">Move ' + s.position + ' the paragraph beginning \u201c' + esc(firstWords(s.destination_quote, 10)) + '\u201d</div>';
+    if (s.type === 'remove' && s.scope === 'paragraph') body += '<div class="meta" style="margin-top:4px">Cuts the whole paragraph</div>';
+    body += '<div class="why">' + esc(s.explanation) + (s.found ? '' : ' <b style="color:var(--flag)">Couldn\u2019t find this passage in the doc.</b>') + '</div></div>';
+    return '<div class="plan-item"><input type="checkbox" aria-label="Select this suggestion" data-pid="' + s.id + '"' + (s.found ? '' : ' disabled') + '>' + body + '</div>';
+  }).join('') || '<p class="none">Nothing in this group.</p>';
+  $('planOut').hidden = false;
+}
+$('planFilters').addEventListener('click', function (ev) { var b = ev.target.closest('[data-filter]'); if (!b) return; planFilter = b.dataset.filter; renderPlan(); });
+$('planAll').addEventListener('click', function () { document.querySelectorAll('#planItems input:not(:disabled)').forEach(function (c) { c.checked = true; }); });
+$('planNone').addEventListener('click', function () { document.querySelectorAll('#planItems input').forEach(function (c) { c.checked = false; }); });
+async function jumpPlan(el) {
+  var s = planCurrent && planCurrent[Number(el.dataset.pq)]; if (!s) return;
+  try { await selectPassage(s.quote); } catch (e) { setStatus('plan', e.message, true); }
+}
+$('planItems').addEventListener('click', function (ev) { var el = ev.target.closest('[data-pq]'); if (el) jumpPlan(el); });
+$('planItems').addEventListener('keydown', function (ev) {
+  if (ev.key !== 'Enter' && ev.key !== ' ') return;
+  var el = ev.target.closest('[data-pq]'); if (el) { ev.preventDefault(); jumpPlan(el); }
+});
+
+function planComment(s) {
+  var head = '[Pincite \u00b7 ' + s.category + '] ';
+  if (s.type === 'change') return head + 'Suggested rewrite: \u201c' + s.replacement + '\u201d ' + s.explanation;
+  if (s.type === 'remove') return head + 'Consider cutting this ' + (s.scope === 'paragraph' ? 'paragraph' : 'passage') + '. ' + s.explanation;
+  if (s.type === 'move') return head + 'Consider moving this paragraph ' + s.position + ' the paragraph beginning \u201c' + firstWords(s.destination_quote, 10) + '\u201d. ' + s.explanation;
+  return head + 'Expand here: ' + s.explanation;
+}
+
+async function runPlan(asComments) {
+  var ids = {};
+  document.querySelectorAll('#planItems input:checked').forEach(function (c) { ids[c.dataset.pid] = true; });
+  var chosen = (planCurrent || []).filter(function (s) { return ids[s.id]; });
+  if (!chosen.length) { setStatus('plan', 'Select at least one suggestion.', true); return; }
+  if (!hasApi14) { setStatus('plan', 'This version of Word doesn\u2019t let add-ins add comments or tracked changes. Update Word to use this.', true); return; }
+  var track = $('planTrack').checked;
+  setAllBusy(true); setStatus('plan', 'Working\u2026');
+  try {
+    var result = await Word.run(async function (ctx) {
+      var quotes = [];
+      chosen.forEach(function (s) { quotes.push(s.quote); if (s.type === 'move') quotes.push(s.destination_quote); });
+      var locs = await locatePassages(ctx, quotes);
+      return withTracking(ctx, !asComments && track, async function () {
+        var k = 0, applied = 0, commented = 0, missed = 0;
+        chosen.forEach(function (s) {
+          var src = locs[k++], dst = s.type === 'move' ? locs[k++] : null;
+          if (!src) { missed++; return; }
+          var canEdit = !asComments && (
+            (s.type === 'change' && src.exact && s.replacement) ||
+            (s.type === 'remove' && (s.scope === 'paragraph' || src.exact)));
+          if (canEdit) {
+            if (s.type === 'change') src.range.insertText(s.replacement, 'Replace');
+            else if (s.scope === 'paragraph') src.range.paragraphs.getFirst().delete();
+            else src.range.delete();
+            applied++;
+          } else {
+            src.range.insertComment(planComment(s));
+            if (dst) dst.range.insertComment('[Pincite \u00b7 ' + s.category + '] The paragraph beginning \u201c' + firstWords(s.quote, 10) + '\u201d could go ' + s.position + ' this one.');
+            commented++;
+          }
+        });
+        await ctx.sync();
+        return { applied: applied, commented: commented, missed: missed };
+      });
+    });
+    var parts = [];
+    if (result.applied) parts.push('applied ' + result.applied + (track ? ' as tracked changes' : ''));
+    if (result.commented) parts.push('added ' + result.commented + ' comment' + (result.commented === 1 ? '' : 's'));
+    var msg = parts.length ? parts.join(', ').replace(/^./, function (c) { return c.toUpperCase(); }) + '.' : 'Nothing was changed.';
+    if (result.missed) msg += ' ' + result.missed + ' couldn\u2019t be found (the text may have changed).';
+    if (result.applied && !track) msg += ' Undo with Edit > Undo.';
+    setStatus('plan', msg);
+  } catch (e) { setStatus('plan', 'Couldn\u2019t finish: ' + e.message, true); }
+  setAllBusy(false);
+}
+$('planApply').addEventListener('click', function () { runPlan(false); });
+$('planComment').addEventListener('click', function () { runPlan(true); });
 </script>
 </body>
 </html>
