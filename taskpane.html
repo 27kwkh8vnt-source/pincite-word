@@ -107,6 +107,8 @@
   .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; margin-top: 10px; }
   .settings-grid label { font-size: 11.5px; color: var(--muted); display: grid; gap: 3px; }
   .settings-grid .full { grid-column: 1 / -1; }
+  #draftNotes { width: 100%; border: 1px solid var(--rule); background: var(--paper); border-radius: 6px; padding: 6px 8px; resize: vertical; font-size: 12.5px; }
+  .score small { display: block; color: var(--muted); font-size: 12px; font-family: var(--sans); }
   .inline { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; margin-bottom: 8px; }
   .inline label { font-size: 11.5px; color: var(--muted); display: grid; gap: 3px; }
   .anon { border-top: 1px solid var(--rule); margin-top: 16px; padding-top: 12px; }
@@ -311,7 +313,12 @@
   <!-- ================= REVIEW ================= -->
   <section role="tabpanel" id="panel-review" aria-labelledby="tab-review" hidden>
     <p class="note" style="margin-top:0">Reads your whole Note the way the Executive Board will, against the JLP grading rubric, and points out specific problems. A full Note usually costs somewhere around 10&#x2013;30&#xa2; per review.</p>
-    <div class="run-row" style="margin-top:12px">
+    <label class="check" style="margin-top:12px"><input type="checkbox" id="draftMode"><span>Draft in progress<small>Grades what&#x2019;s written so far without penalizing sections that are still outlines or notes, lists what&#x2019;s left, and estimates where the Note lands if your plans are carried out well.</small></span></label>
+    <div class="field" id="draftNotesBox" hidden>
+      <p class="field-label"><label for="draftNotes">What&#x2019;s unfinished? (optional)</label></p>
+      <textarea id="draftNotes" rows="3" placeholder="e.g., Part III.B and III.C are outlines. I&#x2019;ll cut some Part I background to make room."></textarea>
+    </div>
+    <div class="run-row">
       <button class="primary" id="reviewBtn">Review my Note</button>
     </div>
     <p class="status" id="status-review" role="status" aria-live="polite"></p>
@@ -1374,6 +1381,8 @@ var REVIEW_TOOL = {
     properties: {
       categories: { type: 'array', items: { type: 'object', properties: {
         name: { type: 'string' }, score: { type: 'number' }, max: { type: 'number' },
+        projected: { type: 'number', description: 'Draft mode only: the likely score if the planned, unfinished sections are written well and the problems noted are fixed.' },
+        status: { type: 'string', enum: ['complete', 'partly drafted', 'mostly planned'], description: 'Draft mode only: how much of what this category depends on is actually written.' },
         assessment: { type: 'string', description: 'Two to four sentences on how the Note does on this category.' },
         issues: { type: 'array', items: { type: 'object', properties: {
           quote: { type: 'string', description: 'Exact text copied from the Note (under 150 characters) locating the problem; empty if it is about the whole Note.' },
@@ -1382,6 +1391,11 @@ var REVIEW_TOOL = {
       }, required: ['name', 'score', 'max', 'assessment', 'issues'] } },
       thesis_quote: { type: 'string', description: 'The sentence that states the thesis, copied exactly, or empty if none is clear.' },
       roadmap_found: { type: 'boolean' },
+      unfinished_sections: { type: 'array', description: 'Draft mode only.', items: { type: 'object', properties: {
+        heading: { type: 'string', description: 'The section heading, copied exactly from the Note.' },
+        state: { type: 'string', enum: ['outline', 'notes', 'placeholder', 'empty', 'partly written'] },
+        needs: { type: 'string', description: 'What the section must contain to earn rubric credit, and anything the current plan is missing.' }
+      }, required: ['heading', 'state', 'needs'] } },
       sources: { type: 'object', properties: {
         unique_total: { type: 'integer' }, cases: { type: 'integer' }, statutes_and_regulations: { type: 'integer' },
         law_review_articles_and_books: { type: 'integer' }, news_and_other: { type: 'integer' }, comment: { type: 'string' }
@@ -1409,15 +1423,32 @@ async function noteSnapshot() {
       var marks = '';
       if (fc) { var nums = []; for (var k = 0; k < fc; k++) nums.push(++fnNum); marks = ' [footnotes ' + nums[0] + (fc > 1 ? '\u2013' + nums[nums.length - 1] : '') + ']'; }
       else if (fc === 0 && kind === 'body') marks = ' [no footnotes]';
-      lines.push(kind === 'heading' ? '\n### ' + t : (kind === 'block' ? '> ' + t : t) + marks);
+      lines.push(kind === 'heading' ? '\n### ' + t : (kind === 'block' ? '> ' + t : kind === 'list' ? '\u2022 ' + t : t) + marks);
     });
     var fnText = notes ? notes.items.map(function (n, i) { return '[' + (i + 1) + '] ' + (n.body.text || '').trim(); }).join('\n') : '(footnotes unavailable in this version of Word)';
     return { text: lines.join('\n'), footnotes: fnText, fnCount: notes ? notes.items.length : null };
   });
 }
 
+// Extra instructions when the author marks the Note as a draft in progress.
+function draftInstructions(draft, listSections) {
+  return [
+    '',
+    'DRAFT IN PROGRESS: this Note is not finished. Some sections are outlines, bullet notes, placeholders, or headings with little or no text.' +
+      (draft.notes ? ' The author says: "' + draft.notes.replace(/"/g, "'") + '"' : ''),
+    listSections ? '- Fill unfinished_sections: every section that is an outline, notes, a placeholder, empty, or only partly written. Copy each heading exactly, and say what it must contain to earn rubric credit and anything its current plan is missing.' : '',
+    '- "score" grades how the Note is going SO FAR. Grade the quality of what is written. Do not deduct merely because a planned section is not written yet. Do deduct for problems in the written prose, and for gaps that neither the draft nor its notes plan to fill. Where a category depends mostly on unfinished sections, grade the soundness of the plan, keep the score provisional, and set status to "mostly planned".',
+    '- "projected" is the likely score if the outlined plans are written well and the problems you list are fixed. Be realistic: give no projected credit for anything no plan addresses, and do not assume perfect execution.',
+    '- Set "status" for every category: "complete", "partly drafted", or "mostly planned".',
+    '- Treat outline bullets and notes as plans, not prose: do not flag their grammar, formatting, or missing citations.',
+    '- Length, footnote count, and source count: report the trajectory (on track or not), not failure.',
+    '- Issues: focus on the written sections, and on weaknesses or missing pieces in the plans. Do not list "this section is unwritten" as an issue; unfinished_sections covers that.',
+    '- Board feedback: say where the draft stands now and what most needs to happen before submission.'
+  ].filter(Boolean).join('\n');
+}
+
 // part: null for the whole rubric at once, or { cats: [...], thesis, sources, feedback } for one slice.
-function buildReviewPrompt(snap, part) {
+function buildReviewPrompt(snap, part, draft) {
   var only = part ? part.cats : RUBRIC.map(function (c) { return c.name; });
   var wants = function (k) { return !part || !!part[k]; };
   var has = function (name) { return only.indexOf(name) >= 0; };
@@ -1442,9 +1473,10 @@ function buildReviewPrompt(snap, part) {
     !has('Topic') && !has('Thesis and Introduction') ? '' : '- You cannot verify preemption or whether the topic is truly novel. Judge novelty only from how the Note frames its contribution, and say so if relevant.',
     !wants('thesis') ? '' : '- Fill in thesis_quote (the sentence stating the thesis, copied exactly) and roadmap_found.',
     !wants('feedback') ? '' : '- Then fill in the board\'s feedback questions: something the author did well, something the author could improve upon, and why (or why not) the Note should be recommended for publication.',
+    draft ? draftInstructions(draft, wants('unfinished')) : '',
     '- You MUST submit by calling the submit_review tool exactly once. Do not answer in plain text.',
     '',
-    'THE NOTE (paragraph text; headings marked ###; block quotes marked >; footnote numbers in brackets after each paragraph)',
+    'THE NOTE (paragraph text; list items marked \u2022; headings marked ###; block quotes marked >; footnote numbers in brackets after each paragraph)',
     '"""', snap.text, '"""',
     '',
     'FOOTNOTES' + (snap.fnCount != null ? ' (' + snap.fnCount + ' total)' : ''),
@@ -1459,10 +1491,11 @@ $('reviewBtn').addEventListener('click', async function () {
   try {
     var snap = await noteSnapshot();
     if (snap.text.replace(/\s/g, '').length < 500) throw new Error('There isn\u2019t enough text to review yet.');
+    var draft = $('draftMode').checked ? { notes: $('draftNotes').value.trim() } : null;
     setStatus('review', 'Reviewing against the rubric. A full Note takes a minute or two\u2026');
     var r;
     try {
-      r = await callClaude(buildReviewPrompt(snap, null), REVIEW_TOOL, 20000, function (n) {
+      r = await callClaude(buildReviewPrompt(snap, null, draft), REVIEW_TOOL, 20000, function (n) {
         setStatus('review', 'Writing the review\u2026 ' + n.toLocaleString() + ' characters so far');
       });
     } catch (e) {
@@ -1470,13 +1503,14 @@ $('reviewBtn').addEventListener('click', async function () {
       setStatus('review', 'Long Note: grading it in three parts at once. Each part reads the whole Note\u2026');
       var sofar = REVIEW_PARTS.map(function () { return 0; });
       var parts = await Promise.all(REVIEW_PARTS.map(function (p, k) {
-        return callClaude(buildReviewPrompt(snap, p), REVIEW_TOOL, 16000, function (n) {
+        return callClaude(buildReviewPrompt(snap, p, draft), REVIEW_TOOL, 16000, function (n) {
           sofar[k] = n;
           setStatus('review', 'Grading in three parts\u2026 ' + sofar.reduce(function (x, y) { return x + y; }, 0).toLocaleString() + ' characters so far');
         });
       }));
       r = mergeReviews(parts);
     }
+    r.draft = !!draft;
     lastReview = r;
     renderReview(r);
     $('planBox').hidden = false; $('planOut').hidden = true; setStatus('plan', '');
@@ -1488,7 +1522,7 @@ $('reviewBtn').addEventListener('click', async function () {
 });
 
 var REVIEW_PARTS = [
-  { cats: ['Topic', 'Thesis and Introduction'], thesis: true },
+  { cats: ['Topic', 'Thesis and Introduction'], thesis: true, unfinished: true },
   { cats: ['Writing Mechanics and Small-Scale Organization', 'Large Scale Organization'] },
   { cats: ['Legal Analysis', 'Use of Citations'], sources: true, feedback: true }
 ];
@@ -1496,7 +1530,7 @@ function mergeReviews(parts) {
   var out = { categories: [] };
   parts.forEach(function (p) {
     (p.categories || []).forEach(function (c) { out.categories.push(c); });
-    ['thesis_quote', 'roadmap_found', 'sources', 'did_well', 'could_improve', 'publication'].forEach(function (k) {
+    ['thesis_quote', 'roadmap_found', 'sources', 'did_well', 'could_improve', 'publication', 'unfinished_sections'].forEach(function (k) {
       if (p[k] != null && p[k] !== '' && out[k] == null) out[k] = p[k];
     });
   });
@@ -1505,12 +1539,38 @@ function mergeReviews(parts) {
   return out;
 }
 
+$('draftMode').checked = store('draftMode') === '1';
+$('draftNotes').value = store('draftNotes') || '';
+$('draftNotesBox').hidden = !$('draftMode').checked;
+$('draftMode').addEventListener('change', function () {
+  store('draftMode', $('draftMode').checked ? '1' : '0');
+  $('draftNotesBox').hidden = !$('draftMode').checked;
+});
+$('draftNotes').addEventListener('input', function () { store('draftNotes', $('draftNotes').value); });
+
 var reviewQuotes = [];
 function renderReview(r) {
   reviewQuotes = [];
   var cats = Array.isArray(r.categories) ? r.categories : [];
   var total = cats.reduce(function (a, c) { return a + (Number(c.score) || 0); }, 0);
-  var html = '<div class="score"><b>' + (Math.round(total * 2) / 2) + '</b><span>/ 100 estimated</span></div>';
+  var round = function (x) { return Math.round(x * 2) / 2; };
+  var html;
+  if (r.draft) {
+    var proj = cats.reduce(function (a, c) { return a + (Number(c.projected != null ? c.projected : c.score) || 0); }, 0);
+    html = '<div class="score"><b>' + round(total) + '</b><span>/ 100 so far</span></div>' +
+      '<p class="note" style="margin:0 0 8px">If your plans are carried out well: about <b>' + round(proj) + '</b> / 100. ' +
+      'Both are estimates for a draft in progress.</p>';
+    var us = Array.isArray(r.unfinished_sections) ? r.unfinished_sections : [];
+    if (us.length) {
+      html += '<h2>Still to write <span>(' + us.length + ')</span></h2>' + us.map(function (u) {
+        var i = u.heading ? reviewQuotes.push(u.heading) - 1 : -1;
+        return '<div class="issue' + (i >= 0 ? ' clickable" role="button" tabindex="0" data-q="' + i : '') + '">' +
+          '<span class="tag">' + esc(u.state) + '</span> <b>' + esc(u.heading) + '</b><br><span class="sug">' + esc(u.needs) + '</span></div>';
+      }).join('');
+    }
+  } else {
+    html = '<div class="score"><b>' + round(total) + '</b><span>/ 100 estimated</span></div>';
+  }
 
   if (r.thesis_quote || r.roadmap_found != null) {
     html += '<div class="callout">' +
@@ -1528,7 +1588,10 @@ function renderReview(r) {
 
   cats.forEach(function (c) {
     var pct = c.max ? Math.max(0, Math.min(100, (Number(c.score) || 0) / c.max * 100)) : 0;
-    html += '<div class="cat"><div class="cat-head">' + esc(c.name) + '<span>' + esc(c.score) + ' / ' + esc(c.max) + '</span></div>' +
+    var right = esc(c.score) + ' / ' + esc(c.max);
+    if (r.draft && c.projected != null) right = esc(c.score) + ' now \u00b7 ' + esc(c.projected) + ' projected / ' + esc(c.max);
+    html += '<div class="cat"><div class="cat-head">' + esc(c.name) + '<span>' + right + '</span></div>' +
+      (r.draft && c.status ? '<span class="tag">' + esc(c.status) + '</span>' : '') +
       '<div class="bar"><div style="width:' + pct + '%"></div></div><p>' + esc(c.assessment) + '</p>' +
       (c.issues || []).map(function (is) {
         var i = is.quote ? reviewQuotes.push(is.quote) - 1 : -1;
@@ -1826,7 +1889,10 @@ function reviewDigest(r) {
     return c.name + ' ' + c.score + '/' + c.max + ': ' + c.assessment + (c.issues || []).map(function (i) {
       return '\n  - ' + i.problem + (i.quote ? ' [at: "' + i.quote + '"]' : '');
     }).join('');
-  }).join('\n') + (r.could_improve ? '\nOverall: ' + r.could_improve : '');
+  }).join('\n') + (r.could_improve ? '\nOverall: ' + r.could_improve : '') +
+    (r.draft && r.unfinished_sections && r.unfinished_sections.length ? '\nUNFINISHED SECTIONS (draft in progress):' + r.unfinished_sections.map(function (u) {
+      return '\n  - ' + u.heading + ' [' + u.state + ']: ' + u.needs;
+    }).join('') : '');
 }
 
 function buildPlanPrompt(snap, review) {
@@ -1849,6 +1915,7 @@ function buildPlanPrompt(snap, review) {
     '- Every quote must be copied EXACTLY from the Note text below (main text unless the problem is in a footnote), so the author\'s software can find it.',
     '- Never invent facts, cases, statutes, or sources. Do not suggest citation-format changes (a separate tool handles those).',
     '- Explanations are one to three sentences, specific to this Note.',
+    review && review.draft ? '- This is a DRAFT IN PROGRESS. For sections listed as unfinished, give "expand" suggestions that say what to write and which gaps in the plan to close, quoting the section heading. Do not suggest rewriting or cutting outline bullets or notes, and do not suggest cutting finished material to make room unless the review flagged it as tangential or repetitive.' : '',
     '- You MUST submit by calling the submit_revision_plan tool exactly once.',
     '',
     'THE NOTE (headings marked ###; block quotes marked >)',
